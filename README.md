@@ -45,4 +45,4 @@
 + 최종 발표 및 문서화
 
 ## Github Address
-https://github.com/bangjeongwoo1/software-4/blob/main/README.md
++ https://github.com/bangjeongwoo1/software-4/blob/main/README.md
