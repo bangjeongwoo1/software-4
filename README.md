@@ -5,9 +5,13 @@
 학생은 자신의 학과, 학년, 성적, 관심 분야 등의 정보를 입력하고, 이에 맞는 장학 정보나 취업 정보를 추천받을 수 있다.
 
 Target Users: 대학생, 학교 취업·장학 담당자
+
 Problem/Need: 학교 홈페이지에 많은 정보가 올라오지만 학생들이 이를 모두 확인하기 어렵고, 본인에게 해당되는 정보를 놓치는 경우가 많음
+
 Product Name/Category: Scholarship & Career Information Recommender / 교내 정보 추천 시스템
+
 Key Benefit: 학생 맞춤형 장학·취업 정보 제공, 정보 탐색 시간 절감, 혜택 누락 방지
+
 Differentiation: 단순 공지 조회가 아니라 학생 조건에 맞는 정보를 선별해서 추천해준다는 점
 
 ## Project Goals & Scope
