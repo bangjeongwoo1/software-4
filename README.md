@@ -42,3 +42,6 @@ AI 기반 고도화 추천
 추천 결과 조회 및 관리자 기능 구현
 통합 테스트 및 UI 연동
 최종 발표 및 문서화
+
+## Github Address
+https://github.com/bangjeongwoo1/software-4/blob/main/README.md
