@@ -1,191 +1,156 @@
-"""MySQL persistence layer for scholarship notices."""
+"""Supabase persistence layer for the renewal crawler schema."""
 
 from __future__ import annotations
 
 from typing import Any
 
-import mysql.connector
-from mysql.connector import Error
-
 try:
     from . import config
-except ImportError:  # Allows running crawler.py directly.
+except ImportError:  # pragma: no cover
     import config  # type: ignore
 
 
-UPSERT_SQL = """
-INSERT INTO scholarship (
-    title,
-    organization,
-    scholarship_type,
-    benefit_type,
-    amount_text,
-    campus_text,
-    apply_start_date,
-    apply_end_date,
-    selection_period_text,
-    eligibility_text,
-    selection_criteria_text,
-    application_method_text,
-    detail_url,
-    source_site,
-    status
-) VALUES (
-    %(title)s,
-    %(organization)s,
-    %(scholarship_type)s,
-    %(benefit_type)s,
-    %(amount_text)s,
-    %(campus_text)s,
-    %(apply_start_date)s,
-    %(apply_end_date)s,
-    %(selection_period_text)s,
-    %(eligibility_text)s,
-    %(selection_criteria_text)s,
-    %(application_method_text)s,
-    %(detail_url)s,
-    %(source_site)s,
-    %(status)s
-)
-ON DUPLICATE KEY UPDATE
-    scholarship_id = LAST_INSERT_ID(scholarship_id),
-    title = VALUES(title),
-    organization = VALUES(organization),
-    scholarship_type = VALUES(scholarship_type),
-    benefit_type = VALUES(benefit_type),
-    amount_text = VALUES(amount_text),
-    campus_text = VALUES(campus_text),
-    apply_start_date = VALUES(apply_start_date),
-    apply_end_date = VALUES(apply_end_date),
-    selection_period_text = VALUES(selection_period_text),
-    eligibility_text = VALUES(eligibility_text),
-    selection_criteria_text = VALUES(selection_criteria_text),
-    application_method_text = VALUES(application_method_text),
-    source_site = VALUES(source_site),
-    status = VALUES(status);
-"""
-
-CONDITION_UPSERT_SQL = """
-INSERT INTO scholarship_condition (
-    scholarship_id,
-    grade_min,
-    grade_max,
-    gpa_min,
-    credit_min,
-    income_level_min,
-    income_level_max,
-    is_new_student,
-    is_enrolled_student,
-    is_transfer_student,
-    is_foreign_student,
-    department_text,
-    raw_condition_text
-) VALUES (
-    %(scholarship_id)s,
-    %(grade_min)s,
-    %(grade_max)s,
-    %(gpa_min)s,
-    %(credit_min)s,
-    %(income_level_min)s,
-    %(income_level_max)s,
-    %(is_new_student)s,
-    %(is_enrolled_student)s,
-    %(is_transfer_student)s,
-    %(is_foreign_student)s,
-    %(department_text)s,
-    %(raw_condition_text)s
-)
-ON DUPLICATE KEY UPDATE
-    grade_min = VALUES(grade_min),
-    grade_max = VALUES(grade_max),
-    gpa_min = VALUES(gpa_min),
-    credit_min = VALUES(credit_min),
-    income_level_min = VALUES(income_level_min),
-    income_level_max = VALUES(income_level_max),
-    is_new_student = VALUES(is_new_student),
-    is_enrolled_student = VALUES(is_enrolled_student),
-    is_transfer_student = VALUES(is_transfer_student),
-    is_foreign_student = VALUES(is_foreign_student),
-    department_text = VALUES(department_text),
-    raw_condition_text = VALUES(raw_condition_text);
-"""
+_client = None
 
 
-def get_connection():
-    """Create a MySQL connection using config.py environment values."""
-    try:
-        return mysql.connector.connect(
-            host=config.DB_HOST,
-            port=config.DB_PORT,
-            user=config.DB_USER,
-            password=config.DB_PASSWORD,
-            database=config.DB_NAME,
-            charset=config.DB_CHARSET,
+def get_client():
+    """Create the Supabase client lazily so dry-run does not need DB setup."""
+
+    global _client
+    if _client is None:
+        config.validate_db_config()
+        from supabase import create_client
+
+        _client = create_client(config.SUPABASE_URL, config.SUPABASE_KEY)
+    return _client
+
+
+def get_or_create_source_site(site_name: str, base_url: str, site_type: str = "scholarship") -> int:
+    client = get_client()
+    existing = (
+        client.table("source_site")
+        .select("site_id")
+        .eq("site_name", site_name)
+        .limit(1)
+        .execute()
+    )
+    if existing.data:
+        return existing.data[0]["site_id"]
+
+    created = (
+        client.table("source_site")
+        .insert({"site_name": site_name, "base_url": base_url, "site_type": site_type})
+        .execute()
+    )
+    return created.data[0]["site_id"]
+
+
+def upsert_common_scholarship(
+    *,
+    site_name: str,
+    source_type: str,
+    title: str,
+    detail_url: str,
+    status: str = "open",
+) -> int:
+    """Upsert the common scholarship parent row and return scholarship_id."""
+
+    client = get_client()
+    site_id = get_or_create_source_site(site_name, config.BASE_URL)
+    normalized_status = status if status in {"open", "closed", "upcoming"} else "open"
+
+    result = (
+        client.table("scholarship")
+        .upsert(
+            {
+                "site_id": site_id,
+                "source_type": source_type,
+                "title": title,
+                "detail_url": detail_url,
+                "status": normalized_status,
+            },
+            on_conflict="detail_url",
         )
-    except Error as exc:
-        raise RuntimeError(f"MySQL connection failed: {exc}") from exc
+        .execute()
+    )
+    return result.data[0]["scholarship_id"]
 
 
-def upsert_scholarship(connection, scholarship: dict[str, Any]) -> int:
-    """Insert a scholarship and its parsed condition, then return its id."""
-    payload = _scholarship_payload(scholarship)
-    condition = scholarship.get("condition")
-    cursor = connection.cursor()
+def save_customized(list_item: dict[str, Any], detail: dict[str, Any], status: str = "open") -> int:
+    """Save customized scholarship list/detail rows."""
 
-    try:
-        cursor.execute(UPSERT_SQL, payload)
-        scholarship_id = int(cursor.lastrowid)
+    client = get_client()
+    title = detail.get("title") or list_item.get("title")
+    detail_url = list_item.get("detail_url") or detail.get("detail_url")
+    if not title or not detail_url:
+        raise ValueError("customized item requires title and detail_url")
 
-        if condition:
-            condition_payload = _condition_payload(scholarship_id, condition)
-            cursor.execute(CONDITION_UPSERT_SQL, condition_payload)
+    scholarship_id = upsert_common_scholarship(
+        site_name=config.CUSTOMIZED_SITE_NAME,
+        source_type=config.SOURCE_CUSTOMIZED,
+        title=title,
+        detail_url=detail_url,
+        status=status,
+    )
 
-        connection.commit()
-        return scholarship_id
-    except Error as exc:
-        connection.rollback()
-        raise RuntimeError(f"Failed to save scholarship: {exc}") from exc
-    finally:
-        cursor.close()
+    client.table("customized_detail_1").upsert(
+        {
+            "scholarship_id": scholarship_id,
+            "detail_url": detail_url,
+            "title": list_item.get("title"),
+            "scholarship_type": list_item.get("scholarship_type"),
+            "benefit_type": list_item.get("benefit_type"),
+            "summary": list_item.get("summary"),
+        },
+        on_conflict="scholarship_id",
+    ).execute()
 
+    detail_payload = {"scholarship_id": scholarship_id, **detail}
+    detail_payload.pop("detail_url", None)
+    client.table("customized_detail_2").upsert(
+        detail_payload,
+        on_conflict="scholarship_id",
+    ).execute()
 
-def _scholarship_payload(scholarship: dict[str, Any]) -> dict[str, Any]:
-    keys = [
-        "title",
-        "organization",
-        "scholarship_type",
-        "benefit_type",
-        "amount_text",
-        "campus_text",
-        "apply_start_date",
-        "apply_end_date",
-        "selection_period_text",
-        "eligibility_text",
-        "selection_criteria_text",
-        "application_method_text",
-        "detail_url",
-        "source_site",
-        "status",
-    ]
-    return {key: scholarship.get(key) for key in keys}
+    return scholarship_id
 
 
-def _condition_payload(scholarship_id: int, condition: dict[str, Any]) -> dict[str, Any]:
-    keys = [
-        "grade_min",
-        "grade_max",
-        "gpa_min",
-        "credit_min",
-        "income_level_min",
-        "income_level_max",
-        "is_new_student",
-        "is_enrolled_student",
-        "is_transfer_student",
-        "is_foreign_student",
-        "department_text",
-        "raw_condition_text",
-    ]
-    payload = {key: condition.get(key) for key in keys}
-    payload["scholarship_id"] = scholarship_id
-    return payload
+def save_notice(list_item: dict[str, Any], detail: dict[str, Any], status: str = "open") -> int:
+    """Save notice list/detail rows."""
 
+    client = get_client()
+    title = detail.get("title") or list_item.get("title")
+    detail_url = detail.get("detail_url") or list_item.get("detail_url")
+    if not title or not detail_url:
+        raise ValueError("notice item requires title and detail_url")
+
+    scholarship_id = upsert_common_scholarship(
+        site_name=config.NOTICE_SITE_NAME,
+        source_type=config.SOURCE_NOTICE,
+        title=title,
+        detail_url=detail_url,
+        status=status,
+    )
+
+    client.table("notice_detail_1").upsert(
+        {
+            "scholarship_id": scholarship_id,
+            "detail_url": detail_url,
+            "is_notice": list_item.get("is_notice"),
+            "campus_text": list_item.get("campus_text"),
+            "title": list_item.get("title"),
+            "author": list_item.get("author"),
+            "registered_at": list_item.get("registered_at"),
+            "view_count": list_item.get("view_count"),
+        },
+        on_conflict="scholarship_id",
+    ).execute()
+
+    detail_payload = {"scholarship_id": scholarship_id, **detail}
+    detail_payload.pop("detail_url", None)
+    client.table("notice_detail_2").upsert(
+        detail_payload,
+        on_conflict="scholarship_id",
+    ).execute()
+
+    return scholarship_id

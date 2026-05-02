@@ -1,40 +1,61 @@
-"""Crawler and database configuration.
+"""Renewal crawler configuration.
 
-Values can be overridden with environment variables so the crawler can be
-reused for different school notice boards without changing source code.
+This module intentionally does not depend on the old crawler config.  It keeps
+the defaults aligned with kangwon_scholarship_crawling_design.md while allowing
+the current .env values to override them.
 """
 
+from __future__ import annotations
+
 import os
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 
-# Target pages -------------------------------------------------------------
-# Example:
-#   SCHOLARSHIP_LIST_URL=https://example.ac.kr/board/scholarship
-BASE_URL = os.getenv("SCHOLARSHIP_BASE_URL", "")
-LIST_URL = os.getenv("SCHOLARSHIP_LIST_URL", "")
+CRAWLER_DIR = Path(__file__).resolve().parent
+load_dotenv(CRAWLER_DIR / ".env")
 
 
-# HTTP options -------------------------------------------------------------
-REQUEST_TIMEOUT = int(os.getenv("CRAWLER_REQUEST_TIMEOUT", "10"))
-USER_AGENT = os.getenv(
-    "CRAWLER_USER_AGENT",
-    "Mozilla/5.0 (compatible; ScholarshipCrawler/1.0)",
+BASE_URL = os.getenv("SCHOLARSHIP_BASE_URL", "https://www.kangwon.ac.kr")
+
+CUSTOMIZED_LIST_URL = os.getenv(
+    "SCHOLARSHIP_JANGHAK_URL",
+    "https://www.kangwon.ac.kr/ko/extn/90/janghak/list.do",
 )
 
+NOTICE_LIST_URL = os.getenv(
+    "SCHOLARSHIP_LIST_URL",
+    "https://www.kangwon.ac.kr/ko/bbs/750/list.do",
+)
 
-# CSS selectors ------------------------------------------------------------
-# These defaults match many board-style pages. Override them in .env when the
-# target site uses different markup.
-LIST_LINK_SELECTOR = os.getenv("LIST_LINK_SELECTOR", "a")
-TITLE_SELECTOR = os.getenv("TITLE_SELECTOR", "h1, h2, .title, .view-title")
-CONTENT_SELECTOR = os.getenv("CONTENT_SELECTOR", "article, .content, .view-content, body")
+REQUEST_TIMEOUT = int(os.getenv("CRAWLER_REQUEST_TIMEOUT", "15"))
+
+USER_AGENT = os.getenv(
+    "CRAWLER_USER_AGENT",
+    "Mozilla/5.0 (compatible; ScholarshipCrawler/Renewal)",
+)
+
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
 
 
-# Database ----------------------------------------------------------------
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = int(os.getenv("DB_PORT", "3306"))
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "")
-DB_NAME = os.getenv("DB_NAME", "scholarship_db")
-DB_CHARSET = os.getenv("DB_CHARSET", "utf8mb4")
+SOURCE_CUSTOMIZED = "customized"
+SOURCE_NOTICE = "notice"
+
+CUSTOMIZED_SITE_NAME = "강원대 맞춤 장학조회"
+NOTICE_SITE_NAME = "강원대 장학공지"
+
+
+def validate_db_config() -> None:
+    """Validate DB config only when a real DB write is requested."""
+
+    missing = []
+    if not SUPABASE_URL:
+        missing.append("SUPABASE_URL")
+    if not SUPABASE_KEY:
+        missing.append("SUPABASE_KEY")
+
+    if missing:
+        raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 

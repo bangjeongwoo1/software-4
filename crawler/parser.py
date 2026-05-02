@@ -1,512 +1,682 @@
-"""Parsing helpers for Kangwon scholarship pages."""
+"""Parsers for the Kangwon scholarship renewal crawler."""
 
 from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Optional
-from urllib.parse import urljoin
+from pathlib import PurePosixPath
+from urllib.parse import parse_qsl, urlencode, unquote, urljoin, urlsplit, urlunsplit
 
 from bs4 import BeautifulSoup
 
-try:
-    from . import config
-except ImportError:  # Allows running crawler.py directly.
-    import config  # type: ignore
+
+VALID_STATUSES = {"open", "closed", "upcoming"}
 
 
-LABEL_ORGANIZATION = [
-    "\uae30\uad00",
-    "\uc8fc\uad00",
-    "\uc6b4\uc601\uae30\uad00",
-    "\uc7a5\ud559\uc7ac\ub2e8",
-]
-LABEL_TYPE = [
-    "\uc720\ud615",
-    "\uad6c\ubd84",
-    "\uc7a5\ud559\uae08 \uc720\ud615",
-]
-LABEL_AMOUNT = [
-    "\uae08\uc561",
-    "\uc9c0\uc6d0\uae08\uc561",
-    "\uc7a5\ud559\uae08\uc561",
-    "\uc9c0\uc6d0\ub0b4\uc6a9",
-]
+def parse_customized_list(html: str, page_url: str) -> list[dict]:
+    """Parse the customized scholarship list table."""
 
-DATE_PATTERNS = [
-    re.compile(r"(\d{4})[.\-/\uB144\s]+(\d{1,2})[.\-/\uC6D4\s]+(\d{1,2})"),
-    re.compile(r"(\d{2})[.\-/\uB144\s]+(\d{1,2})[.\-/\uC6D4\s]+(\d{1,2})"),
-]
+    soup = BeautifulSoup(html, "html.parser")
+    items: list[dict] = []
 
-
-def collect_detail_links(list_html: str, list_url: str) -> list[str]:
-    """Collect unique detail page links from a list page."""
-    soup = BeautifulSoup(list_html, "html.parser")
-
-    if "/janghak/list.do" in list_url:
-        return _collect_janghak_links(soup, list_url)
-    if "/bbs/750/list.do" in list_url:
-        return _collect_notice_links(soup, list_url)
-
-    return _collect_generic_links(soup, list_url)
-
-
-def _collect_janghak_links(soup: BeautifulSoup, list_url: str) -> list[str]:
-    """Collect only scholarship detail buttons from the custom search result."""
-    links: list[str] = []
-    seen: set[str] = set()
-
-    for anchor in soup.select("table tbody a[href*='detail.do'][href*='janghakSn=']"):
-        href = anchor.get("href")
-        if not href:
+    for row in soup.select("table tr"):
+        cells = row.find_all("td")
+        if len(cells) < 5:
             continue
 
-        detail_url = urljoin(list_url, href.strip())
-        if detail_url in seen:
+        title = clean_text(cells[1].get_text(" ", strip=True))
+        if not title:
             continue
 
-        seen.add(detail_url)
-        links.append(detail_url)
+        detail_url = None
+        for link in row.find_all("a", href=True):
+            if "janghakSn=" in link["href"]:
+                detail_url = normalize_detail_url(urljoin(page_url, link["href"]))
+                break
 
-    return links
-
-
-def _collect_notice_links(soup: BeautifulSoup, list_url: str) -> list[str]:
-    """Collect only notice detail links from the scholarship notice board."""
-    links: list[str] = []
-    seen: set[str] = set()
-
-    for anchor in soup.select("table tbody a[href*='detail.do'][href*='pstSn=']"):
-        href = anchor.get("href")
-        if not href:
+        if not detail_url:
             continue
 
-        detail_url = urljoin(list_url, href.strip())
-        if detail_url in seen:
-            continue
-
-        seen.add(detail_url)
-        links.append(detail_url)
-
-    return links
-
-
-def _collect_generic_links(soup: BeautifulSoup, list_url: str) -> list[str]:
-    """Fallback collector for simple board pages."""
-    links: list[str] = []
-    seen: set[str] = set()
-
-    for anchor in soup.select(config.LIST_LINK_SELECTOR):
-        href = anchor.get("href")
-        if not href:
-            continue
-
-        detail_url = urljoin(list_url, href.strip())
-        if detail_url in seen:
-            continue
-
-        lowered = detail_url.lower()
-        looks_like_detail = any(
-            token in lowered for token in ("view", "detail", "notice", "board", "scholar")
+        items.append(
+            {
+                "title": title,
+                "scholarship_type": clean_text(cells[2].get_text(" ", strip=True)),
+                "benefit_type": clean_text(cells[3].get_text(" ", strip=True)),
+                "summary": clean_text(cells[4].get_text(" ", strip=True)),
+                "detail_url": detail_url,
+            }
         )
-        if config.LIST_LINK_SELECTOR != "a" or looks_like_detail:
-            seen.add(detail_url)
-            links.append(detail_url)
 
-    return links
+    return items
 
 
-def parse_detail_page(detail_html: str, detail_url: str) -> dict:
-    """Extract normalized scholarship fields from a detail page."""
-    soup = BeautifulSoup(detail_html, "html.parser")
+def parse_customized_detail(html: str, detail_url: str, list_item: dict | None = None) -> dict:
+    """Parse a customized scholarship detail page."""
 
-    if "/janghak/detail.do" in detail_url:
-        return _parse_janghak_detail(soup, detail_url)
+    soup = BeautifulSoup(html, "html.parser")
+    fields = extract_kv_fields(soup)
+    list_item = list_item or {}
 
-    return _parse_notice_detail(soup, detail_url)
-
-
-def _parse_janghak_detail(soup: BeautifulSoup, detail_url: str) -> dict:
-    fields = _extract_ans_fields(soup)
-    title = fields.get("\uc7a5\ud559\uba85", "")
-    summary = fields.get("\uac1c\uc694")
-    scholarship_type = fields.get("\uc7a5\ud559\uad6c\ubd84")
-    benefit_type = fields.get("\uc7a5\ud559\uc131\uaca9")
-    amount_text = fields.get("\uc7a5\ud559\uae08\uc561")
-    eligibility_text = fields.get("\uc218\ud61c\uc790\uaca9") or summary
-    selection_period_text = fields.get("\uc120\ubc1c\uc2dc\uae30")
-    application_method_text = fields.get("\uc81c\ucd9c\ubc29\ubc95")
-    campus_text = fields.get("\ucea0\ud37c\uc2a4")
-    content_text = _clean_text(" ".join(value for value in fields.values() if value))
-    start_date, end_date = _extract_period(content_text)
-    condition_source = _join_condition_sources(eligibility_text, content_text)
-    condition = _extract_condition(condition_source)
-
-    return {
-        "title": title,
-        "organization": "\uac15\uc6d0\ub300\ud559\uad50",
-        "scholarship_type": scholarship_type,
-        "benefit_type": benefit_type,
-        "amount_text": amount_text,
-        "campus_text": campus_text,
-        "apply_start_date": start_date,
-        "apply_end_date": end_date,
-        "selection_period_text": selection_period_text,
-        "eligibility_text": eligibility_text or content_text[:1000],
-        "selection_criteria_text": summary,
-        "application_method_text": application_method_text,
-        "detail_url": detail_url,
-        "source_site": "kangwon_janghak",
-        "status": _status_from_dates(start_date, end_date),
-        "condition": condition,
-    }
-
-
-def _parse_notice_detail(soup: BeautifulSoup, detail_url: str) -> dict:
-    meta = _extract_notice_meta(soup)
-    full_text = _clean_text(soup.get_text(" ", strip=True))
-    content_text = _extract_content_text(soup)
-
-    title = _extract_title(soup) or _guess_title_from_text(content_text or full_text)
-    organization = meta.get("author") or _extract_labeled_value(content_text, LABEL_ORGANIZATION)
-    scholarship_type = _extract_labeled_value(content_text, LABEL_TYPE) or _infer_scholarship_type(
-        title,
-        content_text,
+    title = pick(fields, "장학명") or list_item.get("title")
+    summary = pick(fields, "개요") or list_item.get("summary")
+    grade_min, grade_max = parse_grade_range(pick(fields, "학년"))
+    income_min, income_max = parse_income_range(
+        pick(fields, "학자금지원구간") or pick(fields, "소득분위")
     )
-    amount_text = _extract_amount(content_text)
-    start_date, end_date = _extract_period(content_text)
-    eligibility_text = _extract_eligibility(content_text) or content_text[:1000]
+    department_flags = parse_department_flags(pick(fields, "계열구분"))
 
-    return {
+    detail = {
         "title": title,
-        "organization": organization,
-        "scholarship_type": scholarship_type,
-        "benefit_type": None,
-        "amount_text": amount_text,
-        "campus_text": None,
-        "apply_start_date": start_date,
-        "apply_end_date": end_date,
-        "selection_period_text": None,
-        "eligibility_text": eligibility_text,
-        "selection_criteria_text": None,
-        "application_method_text": None,
-        "detail_url": detail_url,
-        "source_site": "kangwon_notice",
-        "status": _status_from_dates(start_date, end_date),
-        "condition": _extract_condition(_join_condition_sources(eligibility_text, content_text)),
+        "summary": summary,
+        "campus_text": pick(fields, "캠퍼스"),
+        "scholarship_type": pick(fields, "장학구분") or list_item.get("scholarship_type"),
+        "benefit_type": pick(fields, "장학성격") or list_item.get("benefit_type"),
+        "nationality_type": pick(fields, "국적구분"),
+        "student_type": pick(fields, "학생구분"),
+        "grade_min": grade_min,
+        "grade_max": grade_max,
+        "income_level_min": income_min,
+        "income_level_max": income_max,
+        "enrollment_type": pick(fields, "수업연한구분"),
+        "credit_prev_value": parse_number(pick(fields, "학점(직전학기)")),
+        "gpa_prev_semester_value": parse_number(pick(fields, "평점(직전학기)")),
+        "gpa_total_value": parse_number(pick(fields, "총평점") or pick(fields, "총 평점")),
+        "amount_text": pick(fields, "장학금액"),
+        "selection_period_text": pick(fields, "선발시기"),
+        "requires_recommendation": parse_recommendation(pick(fields, "추천필요여부")),
+        "requires_recommendation_text": normalize_optional_text(pick(fields, "추천필요여부")),
+        "selection_method_text": pick(fields, "선발방법"),
+        "eligibility_text": pick(fields, "수혜자격"),
+        "application_method_text": pick(fields, "제출방법"),
+        "related_document_text": pick(fields, "관련문서"),
+        "note_text": pick(fields, "비고"),
     }
+    detail.update(department_flags)
+    return detail
 
 
-def _join_condition_sources(*values: Optional[str]) -> str:
-    return _clean_text(" ".join(value for value in values if value))
+def parse_notice_list(html: str, page_url: str) -> list[dict]:
+    """Parse the scholarship notice board list."""
 
+    soup = BeautifulSoup(html, "html.parser")
+    items: list[dict] = []
 
-def _extract_ans_fields(soup: BeautifulSoup) -> dict[str, str]:
-    fields: dict[str, str] = {}
-    container = soup.select_one(".sub-contents-container.detail > .card.detail")
-    search_root = container if container else soup
+    table = find_notice_list_table(soup)
+    if not table:
+        return items
 
-    for field in search_root.select(".ans-field"):
-        label = field.select_one(".ans-field-label")
-        value = field.select_one(".ans-field-value")
-        if not label or not value:
+    for row in table.find_all("tr"):
+        cells = row.find_all("td")
+        if len(cells) < 6:
             continue
 
-        key = _clean_text(label.get_text(" ", strip=True))
-        text = _clean_text(value.get_text(" ", strip=True))
-        if key and text:
-            fields[key] = text
+        number_text = clean_text(cells[0].get_text(" ", strip=True))
+        campus = normalize_campus_text(cells[1].get_text(" ", strip=True))
+        title_cell = cells[2]
+        author = clean_text(cells[3].get_text(" ", strip=True)) or None
+        created_at = clean_text(cells[4].get_text(" ", strip=True)) or None
+        views = parse_int(cells[5].get_text(" ", strip=True))
+
+        detail_url = None
+        title = None
+        for link in title_cell.find_all("a", href=True):
+            if "pstSn=" in link["href"]:
+                detail_url = normalize_detail_url(urljoin(page_url, link["href"]))
+                title = clean_text(link.get_text(" ", strip=True))
+                break
+
+        if not detail_url or not title:
+            continue
+
+        items.append(
+            {
+                "is_notice": number_text == "공지",
+                "campus_text": campus,
+                "title": title,
+                "author": author,
+                "registered_at": created_at,
+                "view_count": views,
+                "detail_url": detail_url,
+            }
+        )
+
+    return items
+
+
+def parse_notice_detail(html: str, detail_url: str, list_item: dict | None = None) -> dict:
+    """Parse a scholarship notice detail page."""
+
+    soup = BeautifulSoup(html, "html.parser")
+    list_item = list_item or {}
+
+    title = list_item.get("title") or extract_title(soup)
+    raw_text = extract_notice_body_text(soup)
+    meta = extract_notice_meta(soup)
+    attachments = extract_attachments(soup, detail_url)
+
+    return {
+        "title": title,
+        "campus_text": list_item.get("campus_text") or normalize_campus_text(meta.get("campus_text")),
+        "author": meta.get("author") or list_item.get("author"),
+        "contact_phone": extract_phone(raw_text),
+        "raw_text": raw_text,
+        "attachment_file_url": "\n".join(attachments["files"]) if attachments["files"] else None,
+        "attachment_file_type": ",".join(attachment_types(attachments["files"])) or None,
+        "image_file_url": first_value(attachments["images"]),
+    }
+
+
+def extract_kv_fields(soup: BeautifulSoup) -> dict[str, str]:
+    """Extract key/value fields from Kangwon detail layouts."""
+
+    fields: dict[str, str] = {}
+
+    for field in soup.find_all("div", class_=lambda value: value and "ans-field" in value):
+        label_el = field.select_one(".ans-field-label")
+        value_el = field.select_one(".ans-field-value")
+        if label_el and value_el:
+            key = clean_text(label_el.get_text(" ", strip=True))
+            value = clean_text(value_el.get_text(" ", strip=True))
+            if key and value:
+                fields[key] = value
+
+    if fields:
+        return fields
+
+    for row in soup.find_all("tr"):
+        headers = row.find_all("th")
+        values = row.find_all("td")
+        for header, value in zip(headers, values):
+            key = clean_text(header.get_text(" ", strip=True))
+            text = clean_text(value.get_text(" ", strip=True))
+            if key and text:
+                fields[key] = text
+
+    for dl in soup.find_all("dl"):
+        terms = dl.find_all("dt")
+        defs = dl.find_all("dd")
+        for term, definition in zip(terms, defs):
+            key = clean_text(term.get_text(" ", strip=True))
+            text = clean_text(definition.get_text(" ", strip=True))
+            if key and text:
+                fields[key] = text
 
     return fields
 
 
-def _extract_title(soup: BeautifulSoup) -> str:
-    title = soup.select_one(".card-header h3.heading-02")
-    if title:
-        text = _clean_text(title.get_text(" ", strip=True))
-        if text and text != "\uc7a5\ud559\uae08 \uc0c1\uc138":
-            return text
+def normalize_detail_url(url: str) -> str:
+    """Keep only the identifying query parameter for stable deduplication."""
 
-    title_node = soup.select_one(config.TITLE_SELECTOR)
-    if title_node:
-        return _clean_text(title_node.get_text(" ", strip=True))
+    parts = urlsplit(url)
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
 
-    if soup.title and soup.title.string:
-        return _clean_text(soup.title.string)
+    if "janghakSn" in query:
+        new_query = urlencode({"janghakSn": query["janghakSn"]})
+    elif "pstSn" in query:
+        new_query = urlencode({"pstSn": query["pstSn"]})
+    else:
+        new_query = parts.query
 
-    return ""
-
-
-def _extract_content_text(soup: BeautifulSoup) -> str:
-    content = soup.select_one(".info-editor-area .editor-wrap")
-    if content:
-        return _clean_text(content.get_text(" ", strip=True))
-
-    content_node = soup.select_one(config.CONTENT_SELECTOR)
-    if content_node:
-        return _clean_text(content_node.get_text(" ", strip=True))
-    return _clean_text(soup.get_text(" ", strip=True))
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, new_query, ""))
 
 
-def _guess_title_from_text(text: str) -> str:
-    return text[:120]
+def find_notice_list_table(soup: BeautifulSoup):
+    """Find the actual BBS list table, not the search-condition table."""
 
-
-def _extract_labeled_value(text: str, labels: list[str]) -> Optional[str]:
-    for label in labels:
-        pattern = re.compile(rf"{re.escape(label)}\s*[:\uFF1A]\s*([^|/\n\r]+?)(?=\s{{2,}}|$)")
-        match = pattern.search(text)
-        if match:
-            return _clean_text(match.group(1))[:255]
+    required = {"번호", "캠퍼스", "제목", "작성자", "등록일시", "조회수"}
+    for table in soup.find_all("table"):
+        headers = {clean_text(th.get_text(" ", strip=True)) for th in table.find_all("th")}
+        if required.issubset(headers):
+            return table
     return None
 
 
-def _extract_notice_meta(soup: BeautifulSoup) -> dict[str, str]:
+def normalize_campus_text(text: str | None) -> str:
+    """Normalize Kangwon campus labels for notice list/detail rows."""
+
+    cleaned = clean_text(text)
+    if not cleaned:
+        return "all"
+
+    if cleaned.upper() == "ALL" or cleaned in {"전체", "전 캠퍼스", "전캠퍼스"}:
+        return "all"
+
+    campuses = []
+    for campus in ("강릉", "원주", "춘천", "삼척", "도계"):
+        if campus in cleaned and campus not in campuses:
+            campuses.append(campus)
+
+    if not campuses:
+        return "all"
+    return ",".join(campuses)
+
+
+def build_status(start_date: str | None, end_date: str | None) -> str:
+    """Calculate status from dates. Missing dates are treated as open."""
+
+    today = date.today()
+    start = parse_iso_date(start_date)
+    end = parse_iso_date(end_date)
+
+    if start and today < start:
+        return "upcoming"
+    if end and today > end:
+        return "closed"
+    return "open"
+
+
+def extract_period(text: str | None) -> tuple[str | None, str | None]:
+    """Extract a YYYY-MM-DD date range from text."""
+
+    if not text:
+        return None, None
+
+    normalized = text.replace("년", ".").replace("월", ".").replace("일", " ")
+
+    full = re.search(
+        r"(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})\s*(?:~|-|부터|至|까지)\s*"
+        r"(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})",
+        normalized,
+    )
+    if full:
+        return (
+            format_date(full.group(1), full.group(2), full.group(3)),
+            format_date(full.group(4), full.group(5), full.group(6)),
+        )
+
+    same_year = re.search(
+        r"(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})\s*(?:~|-|부터|至|까지)\s*"
+        r"(\d{1,2})[.\-/]\s*(\d{1,2})",
+        normalized,
+    )
+    if same_year:
+        return (
+            format_date(same_year.group(1), same_year.group(2), same_year.group(3)),
+            format_date(same_year.group(1), same_year.group(4), same_year.group(5)),
+        )
+
+    single = re.search(r"(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})", normalized)
+    if single:
+        return format_date(single.group(1), single.group(2), single.group(3)), None
+
+    return None, None
+
+
+def parse_grade_range(text: str | None) -> tuple[int | None, int | None]:
+    """Parse grade text. Kangwon's 5th grade option is normalized to 4th grade."""
+
+    if not text:
+        return None, None
+
+    if re.search(r"전체|제한\s*없|무관|해당\s*없", text):
+        return None, None
+
+    numbers = [int(match) for match in re.findall(r"([1-9])\s*학년", text)]
+    numbers = [number for number in numbers if 1 <= number <= 4]
+    if numbers:
+        return min(numbers), max(numbers)
+
+    range_match = re.search(r"([1-9])\s*(?:~|-|부터)\s*([1-9])\s*학년", text)
+    if range_match:
+        start = min(int(range_match.group(1)), 4)
+        end = min(int(range_match.group(2)), 4)
+        return min(start, end), max(start, end)
+
+    above = re.search(r"([1-9])\s*학년\s*이상", text)
+    if above:
+        return min(int(above.group(1)), 4), 4
+
+    below = re.search(r"([1-9])\s*학년\s*이하", text)
+    if below:
+        return 1, min(int(below.group(1)), 4)
+
+    digits = [int(match) for match in re.findall(r"\b([1-9])\b", text)]
+    digits = [number for number in digits if 1 <= number <= 4]
+    if digits:
+        return min(digits), max(digits)
+
+    return None, None
+
+
+def parse_income_range(text: str | None) -> tuple[int | None, int | None]:
+    """Parse income level text with the md-specific 0~9 correction."""
+
+    if not text:
+        return None, None
+
+    levels = sorted({int(match) for match in re.findall(r"(\d+)\s*구간", text)})
+    if not levels:
+        return None, None
+
+    if levels == list(range(10)):
+        return 0, 9
+    if levels == list(range(9)):
+        return 0, 8
+    return min(levels), max(levels)
+
+
+def parse_department_flags(text: str | None) -> dict[str, bool | None]:
+    """Return boolean flags for the four department categories."""
+
+    if not text:
+        return {
+            "department_humanities": None,
+            "department_science": None,
+            "department_engineering": None,
+            "department_arts": None,
+        }
+
+    return {
+        "department_humanities": True if "인문" in text else None,
+        "department_science": True if "자연" in text else None,
+        "department_engineering": True if "공학" in text else None,
+        "department_arts": True if "예체능" in text else None,
+    }
+
+
+def parse_recommendation(text: str | None) -> bool | None:
+    if not text:
+        return None
+    normalized = clean_text(text).upper()
+    if normalized in {"-", "–", "—", "해당없음", "없음", "N/A"}:
+        return False
+    if normalized in {"Y", "YES", "TRUE", "필요", "해당"} or "필요" in normalized:
+        return True
+    if normalized in {"N", "NO", "FALSE", "불필요", "미해당", "없음"} or "불필요" in normalized:
+        return False
+    return True
+
+
+def normalize_optional_text(text: str | None) -> str | None:
+    cleaned = clean_text(text)
+    return cleaned or None
+
+
+def parse_number(text: str | None) -> float | None:
+    if not text:
+        return None
+    match = re.search(r"\d+(?:\.\d+)?", text.replace(",", ""))
+    if not match:
+        return None
+    return float(match.group(0))
+
+
+def parse_int(text: str | None) -> int | None:
+    if not text:
+        return None
+    digits = re.sub(r"\D", "", text)
+    if not digits:
+        return None
+    return int(digits)
+
+
+def extract_notice_body_text(soup: BeautifulSoup) -> str | None:
+    selectors = [
+        ".board-view",
+        ".bbs-view",
+        ".post-view",
+        ".view-wrap",
+        ".view",
+        ".detail-content",
+        ".view-content",
+        ".board-view-content",
+        ".bbs-view-content",
+        ".content-area",
+        "article",
+        ".content",
+        "#content",
+    ]
+
+    for selector in selectors:
+        element = soup.select_one(selector)
+        if element:
+            for tag in element.find_all(["script", "style", "nav", "header", "footer"]):
+                tag.decompose()
+            text = clean_text(element.get_text(" ", strip=True))
+            text = trim_notice_noise(text)
+            if text and len(text) >= 20:
+                return text
+
+    body = soup.find("body")
+    if body:
+        for tag in body.find_all(["script", "style", "nav", "header", "footer"]):
+            tag.decompose()
+        text = clean_text(body.get_text(" ", strip=True))
+        return trim_notice_noise(text) or None
+
+    text = clean_text(soup.get_text(" ", strip=True))
+    return trim_notice_noise(text) or None
+
+
+def extract_title(soup: BeautifulSoup) -> str | None:
+    selectors = ["h1.title", ".view-title", ".board-view-title", ".bbs-view-title", "h1", "h2"]
+    for selector in selectors:
+        element = soup.select_one(selector)
+        if element:
+            text = clean_text(element.get_text(" ", strip=True))
+            if text:
+                return text
+
+    og_title = soup.find("meta", property="og:title")
+    if og_title and og_title.get("content"):
+        return clean_text(og_title["content"])
+
+    title_tag = soup.find("title")
+    if title_tag:
+        raw = clean_text(title_tag.get_text(" ", strip=True))
+        return re.split(r"\s*[|>-]\s*", raw)[0] or None
+
+    return None
+
+
+def extract_notice_meta(soup: BeautifulSoup) -> dict[str, str]:
     meta: dict[str, str] = {}
 
-    for row in soup.select(".table.table-row tr"):
-        header = row.find("th")
-        value = row.find("td")
-        if not header or not value:
-            continue
+    for row in soup.find_all("tr"):
+        cells = [clean_text(cell.get_text(" ", strip=True)) for cell in row.find_all(["th", "td"])]
+        for idx, key in enumerate(cells[:-1]):
+            value = cells[idx + 1]
+            if key in {"작성자", "담당부서", "부서", "작성부서"} and value:
+                meta.setdefault("author", value)
+            if key in {"캠퍼스", "구분"} and value:
+                meta.setdefault("campus_text", value)
 
-        key = _clean_text(header.get_text(" ", strip=True))
-        text = _clean_text(value.get_text(" ", strip=True))
-        if key == "\uc791\uc131\uc790":
-            meta["author"] = text
-        elif key == "\ubb38\uc758\uc804\ud654":
-            meta["phone"] = text
+    text = clean_text(soup.get_text(" ", strip=True))
+    author = re.search(r"작성자\s*[:：]?\s*([^\s]+)", text)
+    if author:
+        meta.setdefault("author", author.group(1))
 
     return meta
 
 
-def _infer_scholarship_type(title: str, text: str) -> Optional[str]:
-    source = f"{title} {text}"
-    if "\ud559\uc790\uae08\ub300\ucd9c" in source:
-        return "\ud559\uc790\uae08\ub300\ucd9c"
-    if "\uad6d\uac00\uc7a5\ud559" in source or "\ud55c\uad6d\uc7a5\ud559\uc7ac\ub2e8" in source:
-        return "\uad6d\uac00\uc7a5\ud559"
-    if "\uad50\uc678" in source:
-        return "\uad50\uc678\uc7a5\ud559"
-    if "\uad50\ub0b4" in source or "KNU" in source:
-        return "\uad50\ub0b4\uc7a5\ud559"
-    return None
+def trim_notice_noise(text: str | None) -> str | None:
+    """Trim common Kangwon layout text around the actual notice body."""
+
+    if not text:
+        return None
+
+    start_markers = ["장학공지 상세", "내용"]
+    for marker in start_markers:
+        idx = text.find(marker)
+        if idx >= 0:
+            text = text[idx + len(marker) :].strip()
+            break
+
+    end_markers = ["목록으로", "열람하신 페이지", "등록하기 수정 삭제"]
+    for marker in end_markers:
+        idx = text.find(marker)
+        if idx >= 0:
+            text = text[:idx].strip()
+
+    return clean_text(text) or None
 
 
-def _extract_amount(text: str) -> Optional[str]:
-    labeled = _extract_labeled_value(text, LABEL_AMOUNT)
-    if labeled:
-        return labeled[:255]
+def extract_attachments(soup: BeautifulSoup, detail_url: str) -> dict[str, list[str]]:
+    files: list[str] = []
+    images: list[str] = []
 
-    match = re.search(
-        r"((?:\d{1,3}(?:,\d{3})*|\d+)\s*(?:\uC6D0|\uB9CC\uC6D0|\uCC9C\uC6D0))",
-        text,
-    )
+    for link in soup.find_all("a", href=True):
+        absolute = urljoin(detail_url, link["href"])
+        ext = infer_attachment_ext(absolute, link.get_text(" ", strip=True))
+        if ext in {"pdf", "hwp", "hwpx", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip"}:
+            if not absolute.lower().startswith(("javascript:", "#")):
+                files.append(absolute)
+
+    for image in soup.find_all("img", src=True):
+        absolute = urljoin(detail_url, image["src"])
+        images.append(absolute)
+
+    return {"files": unique(files), "images": unique(images)}
+
+
+def infer_attachment_ext(url: str, link_text: str | None = None) -> str:
+    """Infer file type from path, download query params, or visible filename."""
+
+    parts = urlsplit(url)
+    candidates = [
+        PurePosixPath(parts.path).suffix.lower().lstrip("."),
+    ]
+    query = dict(parse_qsl(parts.query, keep_blank_values=True))
+    for key in ("fn", "dn", "fileName", "filename"):
+        value = query.get(key)
+        if value:
+            candidates.append(PurePosixPath(unquote(value)).suffix.lower().lstrip("."))
+    if link_text:
+        match = re.search(r"\.([A-Za-z0-9]{2,5})(?:\b|$)", clean_text(link_text))
+        if match:
+            candidates.append(match.group(1).lower())
+
+    allowed = {"pdf", "hwp", "hwpx", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip"}
+    for candidate in candidates:
+        if candidate in allowed:
+            return candidate
+    return ""
+
+
+def extract_phone(text: str | None) -> str | None:
+    if not text:
+        return None
+    match = re.search(r"(?:문의|전화|연락처)?\s*(0\d{1,2}-\d{3,4}-\d{4})", text)
     return match.group(1) if match else None
 
 
-def _extract_condition(text: str) -> dict:
-    """Extract searchable condition hints from Korean eligibility text."""
-    cleaned = _clean_text(text)
-    return {
-        "grade_min": _extract_grade_min(cleaned),
-        "grade_max": _extract_grade_max(cleaned),
-        "gpa_min": _extract_gpa_min(cleaned),
-        "credit_min": _extract_credit_min(cleaned),
-        "income_level_min": _extract_income_min(cleaned),
-        "income_level_max": _extract_income_max(cleaned),
-        "is_new_student": _contains_any(cleaned, ["\uc2e0\uc785\uc0dd", "\uc785\ud559\uc608\uc815\uc790"]),
-        "is_enrolled_student": _contains_any(
-            cleaned,
-            ["\uc7ac\ud559\uc0dd", "\uc7ac\ud559 \uc911", "\uc7ac\ud559\uc911", "\uc7ac\ud559 \uc608\uc815", "\uc7ac\ud559\uc73c\ub85c"],
-        ),
-        "is_transfer_student": _contains_any(cleaned, ["\ud3b8\uc785\uc0dd"]),
-        "is_foreign_student": _contains_any(cleaned, ["\uc678\uad6d\uc778", "\uc720\ud559\uc0dd"]),
-        "department_text": _extract_department_text(cleaned),
-        "raw_condition_text": cleaned[:2000],
-    }
-
-
-def _extract_grade_min(text: str) -> Optional[int]:
-    range_match = re.search(r"([1-6])\s*~\s*([1-6])\s*\ud559\ub144", text)
-    if range_match:
-        return int(range_match.group(1))
-
-    min_match = re.search(r"([1-6])\s*\ud559\ub144\s*(?:\uc774\uc0c1|\ubd80\ud130)", text)
-    if min_match:
-        return int(min_match.group(1))
-
-    single_match = re.search(r"([1-6])\s*\ud559\ub144", text)
-    if single_match:
-        return int(single_match.group(1))
+def find_campus(values: list[str]) -> str | None:
+    for value in values:
+        if any(keyword in value for keyword in ("춘천", "삼척", "도계")):
+            return value
     return None
 
 
-def _extract_grade_max(text: str) -> Optional[int]:
-    range_match = re.search(r"([1-6])\s*~\s*([1-6])\s*\ud559\ub144", text)
-    if range_match:
-        return int(range_match.group(2))
-
-    max_match = re.search(r"([1-6])\s*\ud559\ub144\s*(?:\uc774\ud558|\uae4c\uc9c0)", text)
-    if max_match:
-        return int(max_match.group(1))
-
-    single_match = re.search(r"([1-6])\s*\ud559\ub144", text)
-    if single_match:
-        return int(single_match.group(1))
+def find_date_text(values: list[str]) -> str | None:
+    for value in values:
+        if re.search(r"\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}", value):
+            return value
     return None
 
 
-def _extract_gpa_min(text: str) -> Optional[float]:
-    match = re.search(
-        r"(?:\ud3c9\uc810\ud3c9\uade0|\ud3c9\uc810|\ud559\uc810|GPA).{0,30}?"
-        r"([0-4](?:\.\d{1,2})?)\s*(?:\ud559\uc810|\uc810|/4\.5|/4\.3)?\s*(?:\uc774\uc0c1|\ucd08\uacfc)",
-        text,
-        re.IGNORECASE,
-    )
-    if match:
-        return float(match.group(1))
-    return None
-
-
-def _extract_credit_min(text: str) -> Optional[int]:
-    match = re.search(r"(\d{1,3})\s*\ud559\uc810\s*(?:\uc774\uc0c1|\ucd08\uacfc)", text)
-    if match:
-        return int(match.group(1))
-    return None
-
-
-def _extract_income_min(text: str) -> Optional[int]:
-    range_match = re.search(
-        r"([0-9]|10)\s*(?:\ubd84\uc704|\uad6c\uac04)?"
-        r"(?:[\(\uFF08][^\)\uFF09]*[\)\uFF09])?\s*[~\-]\s*"
-        r"([0-9]|10)\s*(?:\ubd84\uc704|\uad6c\uac04)",
-        text,
-    )
-    if range_match:
-        return int(range_match.group(1))
-
-    min_match = re.search(r"([0-9]|10)\s*(?:\ubd84\uc704|\uad6c\uac04)\s*(?:\uc774\uc0c1|\ucd08\uacfc)", text)
-    if min_match:
-        return int(min_match.group(1))
-    listed_levels = _extract_listed_income_levels(text)
-    if listed_levels:
-        return min(listed_levels)
-    if _contains_any(text, ["\uae30\ucd08", "\ucc28\uc0c1\uc704"]):
-        return 0
-    return None
-
-
-def _extract_income_max(text: str) -> Optional[int]:
-    range_match = re.search(
-        r"([0-9]|10)\s*(?:\ubd84\uc704|\uad6c\uac04)?"
-        r"(?:[\(\uFF08][^\)\uFF09]*[\)\uFF09])?\s*[~\-]\s*"
-        r"([0-9]|10)\s*(?:\ubd84\uc704|\uad6c\uac04)",
-        text,
-    )
-    if range_match:
-        return int(range_match.group(2))
-
-    max_match = re.search(r"([0-9]|10)\s*(?:\ubd84\uc704|\uad6c\uac04)\s*(?:\uc774\ud558|\uae4c\uc9c0)", text)
-    if max_match:
-        return int(max_match.group(1))
-    listed_levels = _extract_listed_income_levels(text)
-    if listed_levels:
-        return max(listed_levels)
-    return None
-
-
-def _extract_listed_income_levels(text: str) -> list[int]:
-    """Extract income levels written as repeated values, e.g. 0구간, 1구간, 2구간."""
-    if not re.search(r"(?:\uc18c\ub4dd|\ud559\uc790\uae08\uc9c0\uc6d0|\ubd84\uc704|\uad6c\uac04)", text):
-        return []
-
-    levels = [
-        int(match)
-        for match in re.findall(r"(?<!\d)([0-9]|10)\s*(?:\ubd84\uc704|\uad6c\uac04)(?!\d)", text)
-    ]
-    return sorted(set(levels))
-
-
-def _extract_department_text(text: str) -> Optional[str]:
-    match = re.search(r"([\w\s\uAC00-\uD7A3]+(?:\ud559\uacfc|\ub2e8\uacfc\ub300\ud559|\ub300\ud559))", text)
-    if match:
-        return _clean_text(match.group(1))[:255]
-    return None
-
-
-def _contains_any(text: str, keywords: list[str]) -> Optional[bool]:
-    return True if any(keyword in text for keyword in keywords) else None
-
-
-def _extract_period(text: str) -> tuple[Optional[date], Optional[date]]:
-    period_match = re.search(
-        r"((?:\d{2,4}[.\-/\uB144\s]+\d{1,2}[.\-/\uC6D4\s]+\d{1,2}).{0,20}?"
-        r"(?:~|-|\uBD80\uD130|\uAE4C\uC9C0).{0,20}?"
-        r"(?:\d{2,4}[.\-/\uB144\s]+\d{1,2}[.\-/\uC6D4\s]+\d{1,2}))",
-        text,
-    )
-    if period_match:
-        dates = _parse_dates(period_match.group(1))
-        if len(dates) >= 2:
-            return dates[0], dates[1]
-
-    dates = _parse_dates(text)
-    if len(dates) >= 2:
-        return dates[0], dates[1]
-    if len(dates) == 1:
-        return None, dates[0]
-    return None, None
-
-
-def _parse_dates(text: str) -> list[date]:
-    parsed: list[date] = []
-    for pattern in DATE_PATTERNS:
-        for year_text, month_text, day_text in pattern.findall(text):
-            year = int(year_text)
-            if year < 100:
-                year += 2000
+def find_view_count(values: list[str]) -> int | None:
+    for value in reversed(values):
+        digits = re.sub(r"\D", "", value)
+        if digits and len(digits) <= 8:
             try:
-                parsed.append(date(year, int(month_text), int(day_text)))
+                return int(digits)
             except ValueError:
-                continue
-    return parsed
-
-
-def _extract_eligibility(text: str) -> Optional[str]:
-    match = re.search(
-        r"(?:"
-        r"\uc9c0\uc6d0\s*\uc790\uaca9|"
-        r"\uc2e0\uccad\s*\uc790\uaca9|"
-        r"\uc790\uaca9\s*\uae30\uc900|"
-        r"\uc120\ubc1c\s*\ub300\uc0c1|"
-        r"\uc2e0\uccad\s*\ub300\uc0c1|"
-        r"\uc9c0\uc6d0\s*\ub300\uc0c1|"
-        r"\uc790\uaca9|"
-        r"\ub300\uc0c1"
-        r")\s*[\)\]:\uFF1A]?\s*(.{20,1200}?)(?="
-        r"\uc120\ubc1c\s*\uae30\uc900|"
-        r"\uc2e0\uccad\s*\uae30\uac04|"
-        r"\uc2e0\uccad\s*\ubc29\ubc95|"
-        r"\uc81c\ucd9c\s*\uc11c\ub958|"
-        r"\ucd94\ucc9c\s*\uae30\ud55c|"
-        r"\ubb38\uc758|"
-        r"$)",
-        text,
-    )
-    if match:
-        return _clean_text(match.group(1))
+                return None
     return None
 
 
-def _status_from_dates(start_date: Optional[date], end_date: Optional[date]) -> str:
-    today = date.today()
-    if end_date and end_date < today:
-        return "closed"
-    if start_date and start_date > today:
-        return "scheduled"
-    return "open"
+def find_author(
+    values: list[str],
+    title: str,
+    campus: str | None,
+    created_at: str | None,
+    views: int | None,
+) -> str | None:
+    ignored = {title}
+    if campus:
+        ignored.add(campus)
+    if created_at:
+        ignored.add(created_at)
+    if views is not None:
+        ignored.add(str(views))
+
+    for value in values:
+        if not value or value in ignored:
+            continue
+        if re.search(r"\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}", value):
+            continue
+        if value.isdigit():
+            continue
+        if len(value) <= 30:
+            return value
+    return None
 
 
-def _clean_text(value: str) -> str:
-    return re.sub(r"\s+", " ", value or "").strip()
+def pick(fields: dict[str, str], *labels: str) -> str | None:
+    for label in labels:
+        if label in fields and fields[label]:
+            return fields[label]
+    return None
+
+
+def first_value(values: list[str]) -> str | None:
+    return values[0] if values else None
+
+
+def first_attachment_type(values: list[str]) -> str | None:
+    if not values:
+        return None
+    ext = PurePosixPath(urlsplit(values[0]).path).suffix.lower().lstrip(".")
+    return ext.upper() if ext else None
+
+
+def attachment_types(values: list[str]) -> list[str]:
+    types = []
+    for value in values:
+        ext = infer_attachment_ext(value)
+        if ext:
+            types.append(ext.upper())
+    return unique(types)
+
+
+def unique(values: list[str]) -> list[str]:
+    seen = set()
+    results = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        results.append(value)
+    return results
+
+
+def clean_text(text: str | None) -> str:
+    if not text:
+        return ""
+    icon_noise = [
+        "chevron_forward",
+        "keyboard_arrow_down",
+        "arrow_left_alt",
+        "check_circle",
+        "radio_button_unchecked",
+        "radio_button_checked",
+    ]
+    for token in icon_noise:
+        text = text.replace(token, " ")
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def format_date(year: str, month: str, day: str) -> str | None:
+    try:
+        return date(int(year), int(month), int(day)).isoformat()
+    except ValueError:
+        return None
+
+
+def parse_iso_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
