@@ -3,6 +3,7 @@
 -- Based on kangwon_scholarship_crawling_design.md
 -- =====================================================
 
+DROP TABLE IF EXISTS public.notice_llm CASCADE;
 DROP TABLE IF EXISTS public.notice_detail_2 CASCADE;
 DROP TABLE IF EXISTS public.notice_detail_1 CASCADE;
 DROP TABLE IF EXISTS public.customized_detail_2 CASCADE;
@@ -91,7 +92,7 @@ CREATE TABLE public.customized_detail_2 (
     selection_method_text TEXT,
     eligibility_text TEXT,
     application_method_text TEXT,
-    related_document_text TEXT,
+    related_document_url TEXT,
     note_text TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -138,6 +139,27 @@ CREATE TABLE public.notice_detail_2 (
 
 
 -- =====================================================
+-- 7. notice_llm: LLM parsed notice data
+-- =====================================================
+
+CREATE TABLE public.notice_llm (
+    id BIGSERIAL PRIMARY KEY,
+    scholarship_id BIGINT NOT NULL UNIQUE REFERENCES public.scholarship(scholarship_id) ON DELETE CASCADE,
+    notice_title TEXT,
+    summary TEXT,
+    amount_text TEXT,
+    department_text TEXT,
+    grade_text TEXT,
+    grade_min INT,
+    grade_max INT,
+    gpa_min DOUBLE PRECISION,
+    application_start_date DATE,
+    application_close_date DATE,
+    parsed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
+-- =====================================================
 -- Indexes
 -- =====================================================
 
@@ -147,6 +169,9 @@ CREATE INDEX idx_scholarship_status ON public.scholarship(status);
 CREATE INDEX idx_customized_grade ON public.customized_detail_2(grade_min, grade_max);
 CREATE INDEX idx_customized_income ON public.customized_detail_2(income_level_min, income_level_max);
 CREATE INDEX idx_notice_registered_at ON public.notice_detail_1(registered_at);
+CREATE INDEX idx_notice_llm_application_start_date ON public.notice_llm(application_start_date);
+CREATE INDEX idx_notice_llm_application_close_date ON public.notice_llm(application_close_date);
+CREATE INDEX idx_notice_llm_grade ON public.notice_llm(grade_min, grade_max);
 
 
 -- =====================================================

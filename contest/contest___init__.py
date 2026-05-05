@@ -1,2 +1,0 @@
-"""Contest crawler package."""
-

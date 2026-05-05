@@ -72,6 +72,7 @@ def parse_contest_detail(html: str, detail_url: str, list_item: dict | None = No
     soup = BeautifulSoup(html, "html.parser")
     detail = parse_detail_table(soup, detail_url)
     detail.setdefault("detail_text", parse_detail_text(soup))
+    normalize_contest_urls(detail)
 
     if list_item:
         detail.setdefault("host_organization", list_item.get("host"))
@@ -371,6 +372,57 @@ def extract_first_link(element, base_url: str) -> str | None:
     if not href or href.startswith(("#", "javascript:")):
         return None
     return urljoin(base_url, href)
+
+
+def normalize_contest_urls(detail: dict) -> None:
+    """Prefer URLs explicitly shown in the contest body over generic button links."""
+
+    detail_text = detail.get("detail_text") or ""
+    text_urls = extract_urls_from_text(detail_text)
+    if not text_urls:
+        return
+
+    application_url = detail.get("application_url")
+    if should_replace_application_url(application_url):
+        detail["application_url"] = text_urls[0]
+
+    homepage_url = detail.get("homepage_url")
+    if homepage_url and homepage_url.startswith("http://"):
+        matching = find_same_domain_url(homepage_url, text_urls)
+        if matching:
+            detail["homepage_url"] = matching
+
+
+def should_replace_application_url(url: str | None) -> bool:
+    if not url:
+        return True
+    lowered = url.lower()
+    return lowered.endswith("/join.php") or "join.php?" in lowered
+
+
+def extract_urls_from_text(text: str) -> list[str]:
+    urls = re.findall(r"https?://[^\s)>\]}\"']+", text or "")
+    return unique_strings([url.rstrip(".,;") for url in urls])
+
+
+def find_same_domain_url(url: str, candidates: list[str]) -> str | None:
+    host = urlparse(url).netloc.lower().removeprefix("www.")
+    for candidate in candidates:
+        candidate_host = urlparse(candidate).netloc.lower().removeprefix("www.")
+        if host == candidate_host:
+            return candidate
+    return None
+
+
+def unique_strings(values: list[str]) -> list[str]:
+    seen = set()
+    results = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        results.append(value)
+    return results
 
 
 def unique_by_detail_url(items: list[dict]) -> list[dict]:

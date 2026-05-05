@@ -88,7 +88,7 @@ def parse_customized_detail(html: str, detail_url: str, list_item: dict | None =
         "selection_method_text": pick(fields, "선발방법"),
         "eligibility_text": pick(fields, "수혜자격"),
         "application_method_text": pick(fields, "제출방법"),
-        "related_document_text": pick(fields, "관련문서"),
+        "related_document_url": extract_customized_related_document_url(soup, detail_url),
         "note_text": pick(fields, "비고"),
     }
     detail.update(department_flags)
@@ -516,17 +516,68 @@ def extract_attachments(soup: BeautifulSoup, detail_url: str) -> dict[str, list[
     images: list[str] = []
 
     for link in soup.find_all("a", href=True):
-        absolute = urljoin(detail_url, link["href"])
+        absolute = normalize_asset_url(urljoin(detail_url, link["href"]))
         ext = infer_attachment_ext(absolute, link.get_text(" ", strip=True))
         if ext in {"pdf", "hwp", "hwpx", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip"}:
             if not absolute.lower().startswith(("javascript:", "#")):
                 files.append(absolute)
 
     for image in soup.find_all("img", src=True):
-        absolute = urljoin(detail_url, image["src"])
+        absolute = normalize_asset_url(urljoin(detail_url, image["src"]))
         images.append(absolute)
 
     return {"files": unique(files), "images": unique(images)}
+
+
+def extract_customized_related_document_url(soup: BeautifulSoup, detail_url: str) -> str | None:
+    """Extract file URLs from the customized scholarship related-document field."""
+
+    urls: list[str] = []
+
+    for container in iter_related_document_containers(soup):
+        for link in container.find_all("a", href=True):
+            absolute = normalize_asset_url(urljoin(detail_url, link["href"]))
+            ext = infer_attachment_ext(absolute, link.get_text(" ", strip=True))
+            if ext in {"pdf", "hwp", "hwpx", "doc", "docx"}:
+                urls.append(absolute)
+
+    return "\n".join(unique(urls)) if urls else None
+
+
+def iter_related_document_containers(soup: BeautifulSoup):
+    labels = {"관련문서", "관련 문서", "관련서류", "관련 서류", "첨부파일", "첨부 파일"}
+
+    for field in soup.find_all("div", class_=lambda value: value and "ans-field" in value):
+        label_el = field.select_one(".ans-field-label")
+        value_el = field.select_one(".ans-field-value")
+        label = clean_text(label_el.get_text(" ", strip=True)) if label_el else ""
+        if value_el and any(keyword in label for keyword in labels):
+            yield value_el
+
+    for row in soup.find_all("tr"):
+        headers = row.find_all("th")
+        values = row.find_all("td")
+        for header, value in zip(headers, values):
+            label = clean_text(header.get_text(" ", strip=True))
+            if any(keyword in label for keyword in labels):
+                yield value
+
+    for dl in soup.find_all("dl"):
+        terms = dl.find_all("dt")
+        defs = dl.find_all("dd")
+        for term, definition in zip(terms, defs):
+            label = clean_text(term.get_text(" ", strip=True))
+            if any(keyword in label for keyword in labels):
+                yield definition
+
+
+def normalize_asset_url(url: str) -> str:
+    """Percent-encode query params so Korean filenames remain valid URLs."""
+
+    parts = urlsplit(url)
+    query_pairs = parse_qsl(parts.query, keep_blank_values=True)
+    encoded_query = urlencode(query_pairs, doseq=True, safe="/")
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, encoded_query, parts.fragment))
 
 
 def infer_attachment_ext(url: str, link_text: str | None = None) -> str:

@@ -14,7 +14,10 @@ from dotenv import load_dotenv
 
 
 CRAWLER_DIR = Path(__file__).resolve().parent
-load_dotenv(CRAWLER_DIR / ".env")
+PROJECT_DIR = CRAWLER_DIR.parent
+
+load_dotenv(PROJECT_DIR / ".env")
+load_dotenv(CRAWLER_DIR / ".env", override=True)
 
 
 BASE_URL = os.getenv("SCHOLARSHIP_BASE_URL", "https://www.kangwon.ac.kr")
