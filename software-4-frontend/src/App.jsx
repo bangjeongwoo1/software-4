@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
+import Signup from './pages/Signup.jsx'
 import MyPage from './pages/MyPage.jsx'
 import ItemList from './pages/ItemList.jsx'
 import ItemDetail from './pages/ItemDetail.jsx'
@@ -13,6 +14,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
 
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/list" replace />} />
