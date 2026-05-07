@@ -1,11 +1,47 @@
-import { useState } from 'react'
-import { currentUser } from '../data/user.js'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase.js'
 import { interests as INTEREST_OPTIONS } from '../data/items.js'
 
 export default function MyPage() {
-  const [profile, setProfile] = useState(currentUser)
-  const [history, setHistory] = useState(currentUser.contestHistory)
+  const [studentId, setStudentId] = useState('')
+  const [profile, setProfile] = useState({
+    name: '', department: '', grade: 1, gpa: 0, email: '', phone: '', interests: []
+  })
+  const [history, setHistory] = useState([])
   const [savedAt, setSavedAt] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const sid = user.email.split('@')[0]
+      setStudentId(sid)
+
+      const { data: pData } = await supabase.from('user_profile').select('*').eq('student_id', sid).single()
+      const { data: iData } = await supabase.from('user_interest').select('interest_name').eq('student_id', sid)
+      const { data: hData } = await supabase.from('user_competition').select('*').eq('student_id', sid).order('participated_at', { ascending: false })
+
+      setProfile({
+        name: pData?.name || '',
+        department: pData?.department || '',
+        grade: pData?.grade ? parseInt(pData.grade) : 1,
+        gpa: pData?.gpa_prev || 0,
+        email: pData?.email || user.email,
+        phone: pData?.phone || '',
+        interests: iData ? iData.map(i => i.interest_name) : []
+      })
+      
+      if (hData) {
+        setHistory(hData.map(h => ({
+          id: h.competition_id, title: h.competition_name, date: h.participated_at, result: h.result || ''
+        })))
+      }
+      setLoading(false)
+    }
+    fetchData()
+  }, [])
 
   const update = (key, value) => setProfile((p) => ({ ...p, [key]: value }))
 
@@ -21,9 +57,54 @@ export default function MyPage() {
     })
   }
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault()
-    setSavedAt(new Date().toLocaleTimeString('ko-KR'))
+    if (!studentId) return
+
+    try {
+      const { error: profileError } = await supabase.from('user_profile').upsert({
+        student_id: studentId,
+        name: profile.name,
+        department: profile.department,
+        grade: `${profile.grade}학년`,
+        gpa_prev: profile.gpa,
+        email: profile.email,
+        phone: profile.phone,
+        campus: '춘천',
+        student_type: '재학생'
+      })
+      if (profileError) throw profileError
+
+      const { error: intDelError } = await supabase.from('user_interest').delete().eq('student_id', studentId)
+      if (intDelError) throw intDelError
+
+      if (profile.interests.length > 0) {
+        const interestInserts = profile.interests.map(i => ({ student_id: studentId, interest_name: i }))
+        const { error: intInsError } = await supabase.from('user_interest').insert(interestInserts)
+        if (intInsError) throw intInsError
+      }
+
+      const { error: compDelError } = await supabase.from('user_competition').delete().eq('student_id', studentId)
+      if (compDelError) throw compDelError
+
+      const validHistory = history.filter(h => h.title && h.date)
+      if (validHistory.length > 0) {
+        const historyInserts = validHistory.map(h => ({
+          student_id: studentId,
+          competition_name: h.title,
+          participated_at: h.date,
+          result: h.result
+        }))
+        const { error: compInsError } = await supabase.from('user_competition').insert(historyInserts)
+        if (compInsError) throw compInsError
+      }
+
+      setSavedAt(new Date().toLocaleTimeString('ko-KR'))
+      alert('저장되었습니다.')
+    } catch (error) {
+      console.error(error)
+      alert(`저장 중 오류가 발생했습니다:\n${error.message || JSON.stringify(error)}`)
+    }
   }
 
   const addHistory = () => {
@@ -39,6 +120,8 @@ export default function MyPage() {
     setHistory((h) => h.filter((_, i) => i !== idx))
   }
 
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>데이터를 불러오는 중...</div>
+
   return (
     <div>
       <div className="page-header">
@@ -52,7 +135,7 @@ export default function MyPage() {
           <div className="card__title">
             <h3>기본 정보</h3>
             <span className="text-muted" style={{ fontSize: 13 }}>
-              학사 시스템에서 동기화됨
+              프로필 정보를 입력해 주세요
             </span>
           </div>
 
@@ -60,13 +143,13 @@ export default function MyPage() {
             <div className="col">
               <div className="form-group">
                 <label className="form-label">이름</label>
-                <input className="form-control" value={profile.name} readOnly />
+                <input className="form-control" value={profile.name} onChange={(e) => update('name', e.target.value)} />
               </div>
             </div>
             <div className="col">
               <div className="form-group">
                 <label className="form-label">학과</label>
-                <input className="form-control" value={profile.department} readOnly />
+                <input className="form-control" value={profile.department} onChange={(e) => update('department', e.target.value)} />
               </div>
             </div>
           </div>

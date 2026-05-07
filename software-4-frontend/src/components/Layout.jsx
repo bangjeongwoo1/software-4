@@ -1,11 +1,41 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { currentUser } from '../data/user.js'
+import { supabase } from '../lib/supabase.js'
 
 export default function Layout() {
   const navigate = useNavigate()
+  const [userProfile, setUserProfile] = useState({ name: '로딩중...', department: '', grade: '' })
 
-  const handleLogout = () => {
-    // 더미 로그아웃 — 실제 인증 연결 시 토큰 삭제
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        navigate('/login')
+        return
+      }
+      
+      const studentId = user.email.split('@')[0]
+      const { data } = await supabase
+        .from('user_profile')
+        .select('name, department, grade')
+        .eq('student_id', studentId)
+        .single()
+        
+      if (data) {
+        setUserProfile({
+          name: data.name || '이름없음',
+          department: data.department || '소속없음',
+          grade: data.grade || '?'
+        })
+      } else {
+        setUserProfile({ name: '이름없음', department: '소속없음', grade: '?' })
+      }
+    }
+    fetchProfile()
+  }, [navigate])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     navigate('/login')
   }
 
@@ -34,7 +64,7 @@ export default function Layout() {
 
         <div className="app-header__actions">
           <span className="text-secondary" style={{ fontSize: 13 }}>
-            {currentUser.name} · {currentUser.department} {currentUser.grade}학년
+            {userProfile.name} · {userProfile.department} {userProfile.grade !== '?' ? `${userProfile.grade}` : ''}
           </span>
           <button className="btn btn-ghost btn-sm" onClick={handleLogout}>
             로그아웃

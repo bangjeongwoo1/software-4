@@ -1,20 +1,40 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
+import { supabase } from '../lib/supabase.js'
 
 export default function Login() {
   const navigate = useNavigate()
   const [id, setId] = useState('')
   const [pw, setPw] = useState('')
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!id || !pw) {
       setError('아이디와 비밀번호를 입력해 주세요.')
       return
     }
-    // 더미 인증 — 실제 인증 연결 시 API 호출
-    navigate('/list')
+
+    try {
+      setLoading(true)
+      setError('')
+      const email = `${id}@student.kangwon.ac.kr`
+
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password: pw,
+      })
+
+      if (authError) throw authError
+
+      navigate('/list')
+    } catch (err) {
+      console.error(err)
+      setError('아이디 또는 비밀번호가 올바르지 않습니다.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -38,7 +58,7 @@ export default function Login() {
               id="id"
               type="text"
               className="form-control"
-              placeholder="20XXXXXX"
+              placeholder="예: 202113575"
               value={id}
               onChange={(e) => setId(e.target.value)}
               autoFocus
@@ -63,12 +83,15 @@ export default function Login() {
             </div>
           )}
 
-          <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: 8 }}>
-            로그인
+          <button type="submit" className="btn btn-primary btn-block" style={{ marginTop: 8 }} disabled={loading}>
+            {loading ? '로그인 중...' : '로그인'}
           </button>
 
-          <div className="text-center text-muted mt-4" style={{ fontSize: 12 }}>
-            계정 분실 시 학사지원팀 문의
+          <div className="text-center mt-4" style={{ fontSize: 13 }}>
+            <span className="text-muted">아직 계정이 없으신가요? </span>
+            <Link to="/signup" style={{ color: 'var(--color-primary)', fontWeight: 'bold', textDecoration: 'none' }}>
+              회원가입
+            </Link>
           </div>
         </form>
       </div>
