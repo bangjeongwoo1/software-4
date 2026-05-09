@@ -1,9 +1,43 @@
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { items } from '../data/items.js'
+import { fetchItemById } from '../data/itemsApi.js'
 
 export default function ItemDetail() {
   const { id } = useParams()
-  const item = items.find((it) => it.id === id)
+  const [item, setItem] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetchItemById(id)
+      .then(setItem)
+      .catch(setError)
+      .finally(() => setLoading(false))
+  }, [id])
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="empty-state">공고를 불러오는 중입니다.</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          데이터를 불러오지 못했습니다.
+          <div className="text-muted mt-3">{error.message}</div>
+          <div className="mt-3">
+            <Link to="/list" className="btn btn-secondary btn-sm">
+              리스트로 돌아가기
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   if (!item) {
     return (
@@ -46,13 +80,23 @@ export default function ItemDetail() {
             <hr className="divider" />
 
             <h4>주요 정보</h4>
-            <ul>
-              <li>지원 금액 / 혜택: <strong>{item.amount}</strong></li>
-              <li>대상 학과: {item.department}</li>
-              <li>대상 학년: {item.targetGrade.join(', ')}학년</li>
-              {item.minGpa > 0 && <li>최소 평점: {item.minGpa}</li>}
-              <li>마감일: <strong>{item.deadline}</strong></li>
-            </ul>
+
+            {item.type === 'scholarship' ? (
+              <ul>
+                <li>지원 금액 / 혜택: <strong>{item.amount}</strong></li>
+                <li>대상 캠퍼스: {item.department}</li>
+                <li>대상 학년: {item.targetGrade.length ? `${item.targetGrade.join(', ')}학년` : '-'}</li>
+                {item.minGpa > 0 && <li>최소 평점: {item.minGpa}</li>}
+                <li>마감일: <strong>{item.deadline}</strong></li>
+              </ul>
+            ) : (
+              <ul>
+                <li>참가 대상: {item.department || '-'}</li>
+                <li>시상/혜택: {item.amount || '-'}</li>
+                <li>분야: {item.mainField || '-'}</li>
+                <li>접수 마감: {item.deadline || '-'}</li>
+              </ul>
+            )}
 
             <h4 className="mt-4">관련 태그</h4>
             <div className="flex gap-2" style={{ flexWrap: 'wrap' }}>

@@ -10,7 +10,14 @@ RUN npm ci || npm install
 
 COPY . .
 
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_KEY
+
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_KEY=$VITE_SUPABASE_KEY
+
 RUN npm run build
+
 
 # =========================
 # Stage 2: Serve with nginx
