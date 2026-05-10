@@ -1,0 +1,33 @@
+# 개발용 docker-compose
+# 실행: docker compose up
+# 접속: http://localhost:5173
+#
+# 소스를 수정하면 컨테이너 안의 Vite dev 서버가 자동으로 HMR 반영합니다.
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: software-4-frontend:dev
+    container_name: software-4-frontend-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      # 호스트 소스를 컨테이너에 마운트 (HMR)
+      - ./src:/app/src
+      - ./index.html:/app/index.html
+      - ./vite.config.js:/app/vite.config.js
+      - ./package.json:/app/package.json
+      # node_modules 는 컨테이너 내부 것을 사용 (호스트 충돌 방지)
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+      - VITE_SUPABASE_URL=${SUPABASE_URL}
+      - VITE_SUPABASE_KEY=${SUPABASE_KEY}
+    env_file:
+      - ../.env
+
+
+    stdin_open: true
+    tty: true

@@ -1,0 +1,16 @@
+# 개발용 이미지: Vite dev 서버 + HMR
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 의존성 먼저 설치 (캐시 활용)
+COPY package.json package-lock.json* ./
+RUN npm install
+
+# 소스 복사 (compose에서는 bind mount로 덮어씀)
+COPY . .
+
+EXPOSE 5173
+
+# Vite 기본 명령. compose에서 host/port 옵션 추가 가능
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
