@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { items, sources } from '../data/items.js'
+import { fetchItems } from '../data/itemsApi.js'
 import ItemCard from '../components/ItemCard.jsx'
 
 export default function ItemList() {
@@ -10,6 +10,22 @@ export default function ItemList() {
   const [type, setType] = useState(initialType)
   const [source, setSource] = useState('all')
   const [keyword, setKeyword] = useState('')
+
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetchItems()
+      .then(setItems)
+      .catch(setError)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const sources = useMemo(() => {
+    return Array.from(new Set(items.map((item) => item.source).filter(Boolean)))
+  }, [items])
+
 
   const onChangeType = (next) => {
     setType(next)
@@ -25,7 +41,26 @@ export default function ItemList() {
       if (keyword && !it.title.toLowerCase().includes(keyword.toLowerCase())) return false
       return true
     })
-  }, [type, source, keyword])
+  }, [items, type, source, keyword])
+
+  if (loading) {
+    return (
+      <div className="card">
+        <div className="empty-state">목록을 불러오는 중입니다.</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          데이터를 불러오지 못했습니다.
+          <div className="text-muted mt-3">{error.message}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
