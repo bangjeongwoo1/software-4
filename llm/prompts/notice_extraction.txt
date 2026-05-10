@@ -34,6 +34,11 @@ Rules:
   - "전 학년" or "전체" → grade_min=1, grade_max=4.
   - "2~3학년" → grade_min=2, grade_max=3.
   - Single grade like "3학년만" → grade_min=3, grade_max=3.
+  - Semester/completion conditions must be converted to an eligible grade range when possible.
+  - "2학기 이상 이수" means grade_min=2, grade_max=4.
+  - "4개 학기 이상 이수" means grade_min=3, grade_max=4.
+  - "6개 학기 이상 이수" means grade_min=4, grade_max=4.
+  - "재학생" alone is not a grade/year condition. In that case, keep grade_text if useful but return grade_min=null and grade_max=null.
 - gpa_min must be a number from 0.0 to 4.5 only when a minimum GPA is clearly stated.
   - If the source uses a non-4.5 scale (e.g., 4.3, 4.0), convert proportionally to 4.5 scale.
   - Vague phrases like "성적 우수" without a number must result in null.
