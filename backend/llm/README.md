@@ -4,7 +4,7 @@
 
 ```powershell
 cd C:\Users\ljs44\SoftwareProject\software-4
-python -m llm.llm_runner --limit 3 --dry-run
+python -m backend.llm.llm_runner --limit 3 --dry-run
 ```
 
 ## Files
@@ -26,25 +26,25 @@ llm/
 DB 저장 없이 Gemini 응답만 확인:
 
 ```powershell
-python -m llm.llm_runner --limit 1 --dry-run --sleep 0
+python -m backend.llm.llm_runner --limit 1 --dry-run --sleep 0
 ```
 
 미처리 공지 10건 저장:
 
 ```powershell
-python -m llm.llm_runner --limit 10
+python -m backend.llm.llm_runner --limit 10
 ```
 
 이미 처리된 공지도 다시 분석해서 갱신:
 
 ```powershell
-python -m llm.llm_runner --limit 10 --reprocess
+python -m backend.llm.llm_runner --limit 10 --reprocess
 ```
 
 전체 미처리 공지 처리:
 
 ```powershell
-python -m llm.llm_runner
+python -m backend.llm.llm_runner
 ```
 
 ## CLI Options
@@ -55,6 +55,8 @@ python -m llm.llm_runner
 | `--dry-run` | flag | Gemini 호출과 파싱은 수행하지만 DB 저장은 skip |
 | `--reprocess` | flag | 이미 `notice_llm`에 저장된 공지도 재처리 |
 | `--sleep` | float | 공지 사이 대기 시간. 기본 4초 |
+| `--retries` | integer | Gemini/API 호출 실패 시 공지별 재시도 횟수. 기본 2회 |
+| `--retry-wait` | float | 재시도 전 기본 대기 시간. 재시도마다 배수로 증가 |
 
 기본 실행은 `notice_llm`에 아직 없는 `scholarship_id`만 처리합니다. 기존 결과를 새로고침하려면 `--reprocess`를 붙입니다.
 

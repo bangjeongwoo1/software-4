@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 
 LLM_DIR = Path(__file__).resolve().parent
-PROJECT_DIR = LLM_DIR.parent
+PROJECT_DIR = LLM_DIR.parent.parent
 PROMPT_DIR = LLM_DIR / "prompts"
 load_dotenv(PROJECT_DIR / ".env")
 

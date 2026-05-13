@@ -23,8 +23,6 @@ services:
     environment:
       - NODE_ENV=development
       - CHOKIDAR_USEPOLLING=true
-      - VITE_SUPABASE_URL=${SUPABASE_URL}
-      - VITE_SUPABASE_KEY=${SUPABASE_KEY}
     env_file:
       - ../.env
 
