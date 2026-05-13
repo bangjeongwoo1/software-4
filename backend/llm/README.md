@@ -121,7 +121,7 @@ CREATE TABLE public.notice_llm (
 
 ## Prompt Engineering
 
-장학 공지용 프롬프트는 `llm/prompts/notice_extraction.txt`에서 관리합니다.
+장학 공지용 프롬프트는 `backend/llm/prompts/notice_extraction.txt`에서 관리합니다.
 
 Gemini에는 다음 원칙을 지시합니다.
 
@@ -131,6 +131,7 @@ Gemini에는 다음 원칙을 지시합니다.
 - 없거나 애매하거나 충돌하는 값은 `null`
 - 신청 기간은 `application_start_date`, `application_close_date`로 분리
 - 날짜는 `YYYY-MM-DD` 형식만 허용
+- 학기 이수 조건은 가능한 경우 학년 범위로 변환
 
 프롬프트에서 1차로 제한하고, `llm_parser.py`에서 2차 검증합니다.
 
@@ -139,6 +140,8 @@ Gemini에는 다음 원칙을 지시합니다.
 | Field | Rule | Invalid value |
 | --- | --- | --- |
 | `grade_min`, `grade_max` | 1~5 정수 | `null` |
+| `재학생` | 학년 제한이 따로 없으면 1~4학년 전체로 정규화 | - |
+| 학기 이수 조건 | `2학기 이상 이수` → 2~4학년, `4개 학기 이상 이수` → 3~4학년, `6개 학기 이상 이수` → 4학년 | 추론 불가 시 `null` |
 | `grade_min > grade_max` | 자동 swap | 정상화 |
 | `gpa_min` | 0.0~4.5 실수 | `null` |
 | `application_start_date` | `YYYY-MM-DD` 형식 | `null` |
@@ -146,10 +149,11 @@ Gemini에는 다음 원칙을 지시합니다.
 | 빈 문자열 | 모든 TEXT 컬럼 | `null` |
 
 Gemini가 예전 키인 `deadline`으로 응답하더라도 `llm_parser.py`에서 `application_close_date` fallback으로 읽습니다.
+`재학생`처럼 명시 학년 제한이 없는 재학 조건은 학부 전체 대상인 1~4학년으로 정규화합니다.
 
 ## Environment
 
-`.env`에 아래 값이 필요합니다.
+프로젝트 루트의 `.env` 또는 OS 환경변수에 아래 값이 필요합니다.
 
 ```env
 SUPABASE_URL=your_supabase_project_url

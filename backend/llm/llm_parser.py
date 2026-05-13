@@ -123,6 +123,8 @@ def has_explicit_grade_condition(text: str | None) -> bool:
     if not text:
         return False
     normalized = re.sub(r"\s+", "", text)
+    if re.search(r"재학생|재학중", normalized):
+        return True
     if re.search(r"(전|전체|모든)학년", normalized):
         return True
     if re.search(r"[1-5](?:~|-|부터|에서)?[1-5]?학년", normalized):
@@ -137,6 +139,8 @@ def infer_grade_range_from_explicit_grade_text(text: str | None) -> tuple[int | 
         return None, None
 
     normalized = re.sub(r"\s+", "", text)
+    if re.search(r"재학생|재학중", normalized):
+        return 1, 4
     if re.search(r"(전|전체|모든)학년", normalized):
         return 1, 4
 
