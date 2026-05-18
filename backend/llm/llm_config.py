@@ -27,7 +27,10 @@ USER_AGENT = os.getenv(
     "Mozilla/5.0 (compatible; KangwonNoticeLLMParser/1.0)",
 )
 
-SYSTEM_PROMPT = (PROMPT_DIR / "notice_extraction.txt").read_text(encoding="utf-8").strip()
+SYSTEM_PROMPTS = {
+    "notice": (PROMPT_DIR / "notice_extraction.txt").read_text(encoding="utf-8").strip(),
+    "contest": (PROMPT_DIR / "contest_extraction.txt").read_text(encoding="utf-8").strip(),
+}
 
 
 def validate_db_config() -> None:

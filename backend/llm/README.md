@@ -1,10 +1,11 @@
-# LLM Notice Parser
+# LLM Parser
 
-장학 공지(`notice_detail_2`)의 비정형 데이터(본문 텍스트, 이미지, PDF)를 Gemini API로 분석해 구조화된 정보를 추출하고 `notice_llm` 테이블에 저장하는 모듈입니다. 프로젝트 루트에서 패키지 모드로 실행합니다.
+장학 공지(`notice`)와 공모전(`contest`)의 비정형 데이터를 Gemini API로 분석해 구조화된 정보를 추출하고 각각의 LLM 결과 테이블에 저장하는 모듈입니다. `--target` 옵션으로 처리 대상을 선택합니다.
 
 ```powershell
 cd C:\Users\ljs44\SoftwareProject\software-4
-python -m backend.llm.llm_runner --limit 3 --dry-run
+python -m backend.llm.llm_runner --target notice --limit 3 --dry-run
+python -m backend.llm.llm_runner --target contest --limit 3 --dry-run
 ```
 
 ## Files
@@ -15,52 +16,72 @@ llm/
   llm_config.py                  # .env, Gemini 모델명, 프롬프트 파일 로드
   llm_client.py                  # Gemini 호출, 이미지/PDF 다운로드 및 bytes 전달
   llm_parser.py                  # JSON 파싱, 타입 변환, 항목별 검증
-  llm_db.py                      # Supabase 처리 대상 조회 및 notice_llm upsert
+  llm_db.py                      # Supabase 처리 대상 조회 및 LLM 결과 upsert
   llm_runner.py                  # CLI 진입점
   prompts/
     notice_extraction.txt        # 장학 공지 구조화 추출 프롬프트
+    contest_extraction.txt       # 공모전 요약 프롬프트
 ```
 
 ## Run
 
+### notice
+
 DB 저장 없이 Gemini 응답만 확인:
 
 ```powershell
-python -m backend.llm.llm_runner --limit 1 --dry-run --sleep 0
+python -m backend.llm.llm_runner --target notice --limit 1 --dry-run --sleep 0
 ```
 
 미처리 공지 10건 저장:
 
 ```powershell
-python -m backend.llm.llm_runner --limit 10
+python -m backend.llm.llm_runner --target notice --limit 10
 ```
 
 이미 처리된 공지도 다시 분석해서 갱신:
 
 ```powershell
-python -m backend.llm.llm_runner --limit 10 --reprocess
+python -m backend.llm.llm_runner --target notice --limit 10 --reprocess
 ```
 
-전체 미처리 공지 처리:
+### contest
+
+DB 저장 없이 Gemini 응답만 확인:
 
 ```powershell
-python -m backend.llm.llm_runner
+python -m backend.llm.llm_runner --target contest --limit 1 --dry-run --sleep 0
+```
+
+미처리 공모전 10건 저장:
+
+```powershell
+python -m backend.llm.llm_runner --target contest --limit 10
+```
+
+이미 처리된 공모전도 다시 분석해서 갱신:
+
+```powershell
+python -m backend.llm.llm_runner --target contest --limit 10 --reprocess
 ```
 
 ## CLI Options
 
 | Option | Values | Description |
 | --- | --- | --- |
-| `--limit` | integer | 처리할 공지 수. 전체 처리 시 생략 |
+| `--target` | `notice` \| `contest` | 처리 대상. 기본값 `notice` |
+| `--limit` | integer | 처리할 항목 수. 전체 처리 시 생략 |
 | `--dry-run` | flag | Gemini 호출과 파싱은 수행하지만 DB 저장은 skip |
-| `--reprocess` | flag | 이미 `notice_llm`에 저장된 공지도 재처리 |
-| `--sleep` | float | 공지 사이 대기 시간. 기본 4초 |
-| `--retries` | integer | Gemini/API 호출 실패 시 공지별 재시도 횟수. 기본 2회 |
-| `--retry-wait` | float | 재시도 전 기본 대기 시간. 재시도마다 배수로 증가 |
+| `--reprocess` | flag | 이미 결과 테이블에 저장된 항목도 재처리 |
+| `--sleep` | float | 항목 사이 대기 시간. 기본 4초 |
+| `--retries` | integer | Gemini/API 호출 실패 시 항목별 재시도 횟수. 기본 2회 |
+| `--retry-wait` | float | 재시도 전 기본 대기 시간(초). 재시도마다 배수로 증가 |
 
-기본 실행은 `notice_llm`에 아직 없는 `scholarship_id`만 처리합니다. 기존 결과를 새로고침하려면 `--reprocess`를 붙입니다.
+기본 실행은 결과 테이블에 아직 없는 항목만 처리합니다. 기존 결과를 새로고침하려면 `--reprocess`를 붙입니다.
 
 ## Pipeline
+
+### notice
 
 ```text
 notice_detail_2 + notice_detail_1
@@ -73,18 +94,38 @@ llm_client.download_asset()
         ↓
 이미지/PDF bytes 생성
         ↓
-Gemini API 호출
+Gemini API 호출 (notice_extraction.txt 프롬프트)
         ↓
-llm_parser.parse_response()
+llm_parser.parse_response(target="notice")
         ↓
 JSON 파싱 + 검증
         ↓
 notice_llm UPSERT (scholarship_id 기준)
 ```
 
-이미지와 PDF는 URL 문자열만 Gemini에 전달하지 않습니다. 코드가 먼저 `requests.get()`으로 파일을 다운로드한 뒤 bytes와 mime type을 Gemini에 직접 전달합니다.
+### contest
 
-## Stored Table
+```text
+contest_detail_2 + contest
+        ↓
+llm_db.fetch_contest_targets()
+        ↓
+detail_text + 보조 컬럼(host_organization, target_text 등) 합산
+        ↓
+Gemini API 호출 (contest_summary.txt 프롬프트)
+        ↓
+llm_parser.parse_response(target="contest")
+        ↓
+JSON 파싱 + 검증
+        ↓
+contest_llm UPSERT (contest_id 기준)
+```
+
+notice는 이미지/PDF bytes를 Gemini에 직접 전달합니다. contest는 현재 텍스트만 처리하며, 나중에 첨부 URL이 수집되면 같은 asset 로직을 재사용할 수 있습니다.
+
+## Stored Tables
+
+### notice_llm
 
 ```sql
 CREATE TABLE public.notice_llm (
@@ -105,9 +146,24 @@ CREATE TABLE public.notice_llm (
 );
 ```
 
-`scholarship_id` UNIQUE 제약으로 한 공지당 LLM 분석 결과가 하나만 저장됩니다. 중복 실행 시 새 row를 만들지 않고 기존 row를 갱신합니다.
+### contest_llm
+
+```sql
+CREATE TABLE public.contest_llm (
+    id BIGSERIAL PRIMARY KEY,
+    contest_id BIGINT NOT NULL UNIQUE
+        REFERENCES public.contest(contest_id) ON DELETE CASCADE,
+    contest_title TEXT,
+    summary TEXT,
+    parsed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+
+각 테이블의 ID 컬럼에 UNIQUE 제약이 있어 중복 실행 시 기존 row를 갱신합니다.
 
 ## Source Data
+
+### notice
 
 `notice_detail_2`에서 아래 컬럼을 읽어 Gemini에 전달합니다.
 
@@ -119,23 +175,51 @@ CREATE TABLE public.notice_llm (
 
 강원대 이미지 URL이 `application/octet-stream`으로 내려오는 경우가 있어, `llm_client.py`는 파일 시그니처와 URL의 `fn`, `dn` 파라미터를 함께 보고 PNG/JPEG/PDF mime type을 보정합니다. HWP 등 Gemini가 직접 처리하기 어려운 파일은 skip합니다.
 
+### contest
+
+`contest_detail_2`에서 아래 컬럼을 합산해 하나의 텍스트로 Gemini에 전달합니다.
+
+| Column | 역할 |
+| --- | --- |
+| `detail_text` | 상세 본문 (주요 LLM 입력) |
+| `host_organization` | 주최/주관 |
+| `main_field` | 분야 |
+| `target_text` | 참가대상 |
+| `reception_period_text` | 접수기간 |
+| `award_text` | 시상내역 |
+| `application_method` | 접수방법 |
+| `homepage_url` | 홈페이지 |
+| `application_url` | 접수 URL |
+
+`contest` 테이블의 `title`도 함께 포함합니다.
+
 ## Prompt Engineering
 
-장학 공지용 프롬프트는 `backend/llm/prompts/notice_extraction.txt`에서 관리합니다.
+### notice
 
-Gemini에는 다음 원칙을 지시합니다.
+`backend/llm/prompts/notice_extraction.txt`에서 관리합니다.
 
 - JSON 객체 하나만 반환
-- 추측 금지
-- 문서에서 명확히 확인되는 값만 반환
+- 추측 금지, 문서에서 명확히 확인되는 값만 반환
 - 없거나 애매하거나 충돌하는 값은 `null`
 - 신청 기간은 `application_start_date`, `application_close_date`로 분리
 - 날짜는 `YYYY-MM-DD` 형식만 허용
 - 학기 이수 조건은 가능한 경우 학년 범위로 변환
 
-프롬프트에서 1차로 제한하고, `llm_parser.py`에서 2차 검증합니다.
+### contest
+
+`backend/llm/prompts/contest_extraction.txt`에서 관리합니다.
+
+- JSON 객체 하나만 반환, markdown 래핑 금지
+- 추측 금지, 원문에 없는 내용은 작성 금지
+- 한국어로 문단형 요약 작성
+- 공모전명, 주최/주관, 분야, 참가대상, 접수기간, 심사/발표, 시상내역, 접수방법, URL, 유의사항 포함
+- 날짜·금액·URL은 원문 그대로 보존
+- 내용이 충분하지 않으면 `{"summary": null}` 반환
 
 ## Validation Rules
+
+### notice
 
 | Field | Rule | Invalid value |
 | --- | --- | --- |
@@ -149,7 +233,13 @@ Gemini에는 다음 원칙을 지시합니다.
 | 빈 문자열 | 모든 TEXT 컬럼 | `null` |
 
 Gemini가 예전 키인 `deadline`으로 응답하더라도 `llm_parser.py`에서 `application_close_date` fallback으로 읽습니다.
-`재학생`처럼 명시 학년 제한이 없는 재학 조건은 학부 전체 대상인 1~4학년으로 정규화합니다.
+
+### contest
+
+| Field | Rule |
+| --- | --- |
+| `summary` | 빈 문자열이면 `null`로 정규화 |
+| 그 외 필드 | 저장하지 않음 |
 
 ## Environment
 
@@ -173,6 +263,8 @@ python-dotenv
 ```
 
 ## Verification SQL
+
+### notice
 
 처리 진행률:
 
@@ -204,43 +296,56 @@ ORDER BY parsed_at DESC
 LIMIT 10;
 ```
 
-신청 마감일이 남은 공지:
+### contest
 
-```sql
-SELECT notice_title, application_start_date, application_close_date, amount_text
-FROM notice_llm
-WHERE application_close_date IS NOT NULL
-  AND application_close_date >= CURRENT_DATE
-ORDER BY application_close_date ASC
-LIMIT 20;
-```
-
-학년/평점 필터링 예시:
-
-```sql
-SELECT notice_title, grade_text, gpa_min, application_close_date
-FROM notice_llm
-WHERE (grade_min IS NULL OR grade_min <= 3)
-  AND (grade_max IS NULL OR grade_max >= 3)
-  AND (gpa_min IS NULL OR gpa_min <= 3.3)
-  AND application_close_date >= CURRENT_DATE
-ORDER BY application_close_date ASC;
-```
-
-NULL 비율 확인:
+처리 진행률:
 
 ```sql
 SELECT
-    ROUND(100.0 * COUNT(summary) / COUNT(*), 1) AS summary_pct,
-    ROUND(100.0 * COUNT(amount_text) / COUNT(*), 1) AS amount_pct,
-    ROUND(100.0 * COUNT(department_text) / COUNT(*), 1) AS department_pct,
-    ROUND(100.0 * COUNT(grade_min) / COUNT(*), 1) AS grade_pct,
-    ROUND(100.0 * COUNT(gpa_min) / COUNT(*), 1) AS gpa_pct,
-    ROUND(100.0 * COUNT(application_start_date) / COUNT(*), 1) AS application_start_date_pct,
-    ROUND(100.0 * COUNT(application_close_date) / COUNT(*), 1) AS application_close_date_pct
-FROM notice_llm;
+    COUNT(*) AS total_contests,
+    COUNT(cl.contest_id) AS parsed_count,
+    COUNT(*) - COUNT(cl.contest_id) AS pending_count
+FROM contest_detail_2 cd
+LEFT JOIN contest_llm cl ON cd.contest_id = cl.contest_id;
+```
+
+최근 요약 결과:
+
+```sql
+SELECT
+    contest_id,
+    contest_title,
+    summary,
+    parsed_at
+FROM contest_llm
+ORDER BY parsed_at DESC
+LIMIT 20;
+```
+
+요약이 비어 있는 row 확인:
+
+```sql
+SELECT contest_id, contest_title, parsed_at
+FROM contest_llm
+WHERE summary IS NULL
+ORDER BY parsed_at DESC;
+```
+
+원문 대비 확인:
+
+```sql
+SELECT
+    c.contest_id,
+    c.title,
+    cd.detail_text,
+    cl.summary
+FROM contest c
+JOIN contest_detail_2 cd ON c.contest_id = cd.contest_id
+LEFT JOIN contest_llm cl ON c.contest_id = cl.contest_id
+ORDER BY c.contest_id DESC
+LIMIT 10;
 ```
 
 ## Schema SQL
 
-`notice_llm` 테이블은 `sql/scholarship_schema.sql`에 포함되어 있습니다. 데모 환경에서 전체 초기화할 경우 해당 SQL을 Supabase SQL Editor에 다시 적용한 뒤 장학 공지 크롤러와 LLM 파서를 순서대로 실행합니다.
+`notice_llm`은 `sql/scholarship_schema.sql`, `contest_llm`은 `sql/contest_schema.sql`에 포함되어 있습니다. 처음부터 초기화할 경우 해당 SQL을 Supabase SQL Editor에 적용한 뒤 크롤러와 LLM 파서를 순서대로 실행합니다. 기존 데이터를 유지하면서 `contest_llm`만 추가하려면 해당 `CREATE TABLE` 문만 단독으로 실행합니다.

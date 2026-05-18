@@ -19,12 +19,14 @@ OUTPUT_FIELDS = (
 )
 
 
-def parse_response(response_text: str) -> dict[str, Any]:
+def parse_response(response_text: str, target: str = "notice") -> dict[str, Any]:
     """Parse Gemini JSON text and return a DB-ready validated payload."""
 
     raw = json.loads(extract_json_object(response_text))
     if not isinstance(raw, dict):
         raise ValueError("Gemini response must be a JSON object")
+    if target == "contest":
+        return validate_contest_payload(raw)
     return validate_payload(raw)
 
 
@@ -44,6 +46,10 @@ def extract_json_object(text: str) -> str:
     if start == -1 or end == -1 or end <= start:
         raise ValueError("Gemini response does not contain a JSON object")
     return text[start : end + 1]
+
+
+def validate_contest_payload(raw: dict[str, Any]) -> dict[str, Any]:
+    return {"summary": normalize_text(raw.get("summary"))}
 
 
 def validate_payload(raw: dict[str, Any]) -> dict[str, Any]:
