@@ -3,6 +3,7 @@
 -- Based on contestkorea_crawling_design.md
 -- =====================================================
 
+DROP TABLE IF EXISTS public.contest_llm CASCADE;
 DROP TABLE IF EXISTS public.contest_detail_2 CASCADE;
 DROP TABLE IF EXISTS public.contest_detail_1 CASCADE;
 DROP TABLE IF EXISTS public.contest CASCADE;
@@ -71,9 +72,24 @@ CREATE TABLE public.contest_detail_2 (
 
 
 -- =====================================================
+-- 4. contest_llm: LLM-generated summaries
+-- =====================================================
+
+CREATE TABLE public.contest_llm (
+    id BIGSERIAL PRIMARY KEY,
+    contest_id BIGINT NOT NULL UNIQUE
+        REFERENCES public.contest(contest_id) ON DELETE CASCADE,
+    contest_title TEXT,
+    summary TEXT,
+    parsed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+
+-- =====================================================
 -- Indexes
 -- =====================================================
 
+CREATE INDEX idx_contest_llm_parsed_at ON public.contest_llm(parsed_at DESC);
 CREATE INDEX idx_contest_site_id ON public.contest(site_id);
 CREATE INDEX idx_contest_source_type ON public.contest(source_type);
 CREATE INDEX idx_contest_status ON public.contest(status);

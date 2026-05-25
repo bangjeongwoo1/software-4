@@ -19,8 +19,14 @@ class DownloadedAsset:
     mime_type: str
 
 
-def call_gemini(*, raw_text: str | None, image_url: str | None, pdf_url: str | None) -> dict:
-    """Send notice text/assets to Gemini and return a validated parsed payload."""
+def call_gemini(
+    *,
+    raw_text: str | None,
+    image_url: str | None = None,
+    pdf_url: str | None = None,
+    prompt_type: str = "notice",
+) -> dict:
+    """Send text/assets to Gemini and return a validated parsed payload."""
 
     config.validate_gemini_config()
 
@@ -29,10 +35,11 @@ def call_gemini(*, raw_text: str | None, image_url: str | None, pdf_url: str | N
 
     contents: list[object] = []
     if raw_text:
-        contents.append(build_text_prompt(raw_text))
+        contents.append(build_text_prompt(raw_text, prompt_type=prompt_type))
 
-    for asset in collect_assets(image_url=image_url, pdf_url=pdf_url):
-        contents.append(types.Part.from_bytes(data=asset.data, mime_type=asset.mime_type))
+    if prompt_type == "notice":
+        for asset in collect_assets(image_url=image_url, pdf_url=pdf_url):
+            contents.append(types.Part.from_bytes(data=asset.data, mime_type=asset.mime_type))
 
     if not contents:
         raise ValueError("No text, image, or PDF content available for Gemini")
@@ -42,15 +49,17 @@ def call_gemini(*, raw_text: str | None, image_url: str | None, pdf_url: str | N
         model=config.GEMINI_MODEL,
         contents=contents,
         config=types.GenerateContentConfig(
-            system_instruction=config.SYSTEM_PROMPT,
+            system_instruction=config.SYSTEM_PROMPTS[prompt_type],
             response_mime_type="application/json",
             temperature=0,
         ),
     )
-    return parse_response(response.text or "")
+    return parse_response(response.text or "", target=prompt_type)
 
 
-def build_text_prompt(raw_text: str) -> str:
+def build_text_prompt(raw_text: str, *, prompt_type: str = "notice") -> str:
+    if prompt_type == "contest":
+        return raw_text
     return (
         "Analyze this Kangwon National University scholarship notice text. "
         "Use attached image/PDF evidence too if provided.\n\n"
