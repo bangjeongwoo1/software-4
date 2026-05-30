@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
+import { api } from '../lib/api.js'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -19,19 +19,14 @@ export default function Login() {
     try {
       setLoading(true)
       setError('')
-      const email = `${id}@student.kangwon.ac.kr`
+      const email = id.includes('@') ? id : `${id}@student.kangwon.ac.kr`
 
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password: pw,
-      })
-
-      if (authError) throw authError
+      await api.login(email, pw)
 
       navigate('/list')
     } catch (err) {
       console.error(err)
-      setError('아이디 또는 비밀번호가 올바르지 않습니다.')
+      setError(err.message || '아이디 또는 비밀번호가 올바르지 않습니다.')
     } finally {
       setLoading(false)
     }
