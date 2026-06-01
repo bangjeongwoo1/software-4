@@ -19,14 +19,18 @@
   "paths": {
     "/api/auth/signup": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "회원가입",
         "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/SignupRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/SignupRequest"
+              }
             }
           }
         },
@@ -35,7 +39,9 @@
             "description": "회원가입 성공",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
               }
             }
           },
@@ -43,7 +49,9 @@
             "description": "잘못된 요청 (이메일 중복 등)",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -52,14 +60,18 @@
     },
     "/api/auth/login": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "로그인",
         "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
             }
           }
         },
@@ -68,7 +80,9 @@
             "description": "로그인 성공",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponse"
+                }
               }
             }
           },
@@ -76,7 +90,9 @@
             "description": "인증 실패",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -85,14 +101,18 @@
     },
     "/api/users/me": {
       "get": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "내 정보 조회",
         "responses": {
           "200": {
             "description": "조회 성공",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/User" }
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
               }
             }
           },
@@ -100,20 +120,26 @@
             "description": "인증 필요",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
         }
       },
       "put": {
-        "tags": ["Users"],
+        "tags": [
+          "Users"
+        ],
         "summary": "내 프로필 수정",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/UserUpdateRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateRequest"
+              }
             }
           }
         },
@@ -122,7 +148,9 @@
             "description": "수정 성공",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/User" }
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
               }
             }
           },
@@ -130,7 +158,9 @@
             "description": "잘못된 요청",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -138,7 +168,9 @@
             "description": "인증 필요",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -147,25 +179,38 @@
     },
     "/api/scholarships": {
       "get": {
-        "tags": ["Scholarships"],
+        "tags": [
+          "Scholarships"
+        ],
         "summary": "장학금 공고 목록 조회",
         "parameters": [
           {
             "name": "page",
             "in": "query",
-            "schema": { "type": "integer", "default": 1, "minimum": 1 },
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
             "description": "페이지 번호"
           },
           {
             "name": "size",
             "in": "query",
-            "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 100 },
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            },
             "description": "페이지 당 항목 수"
           },
           {
             "name": "keyword",
             "in": "query",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "검색 키워드 (제목/주관기관)"
           },
           {
@@ -173,20 +218,32 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["성적우수", "생활지원", "근로", "외부", "기타"]
+              "enum": [
+                "성적우수",
+                "생활지원",
+                "근로",
+                "외부",
+                "기타"
+              ]
             },
             "description": "장학금 카테고리"
           },
           {
             "name": "grade",
             "in": "query",
-            "schema": { "type": "integer", "minimum": 1, "maximum": 6 },
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6
+            },
             "description": "지원 가능 학년 필터"
           },
           {
             "name": "department",
             "in": "query",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "지원 가능 학과 필터"
           },
           {
@@ -194,7 +251,11 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["deadline_asc", "deadline_desc", "latest"],
+              "enum": [
+                "deadline_asc",
+                "deadline_desc",
+                "latest"
+              ],
               "default": "deadline_asc"
             },
             "description": "정렬 기준"
@@ -208,12 +269,23 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "total": { "type": "integer", "example": 124 },
-                    "page": { "type": "integer", "example": 1 },
-                    "size": { "type": "integer", "example": 20 },
+                    "total": {
+                      "type": "integer",
+                      "example": 124
+                    },
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "size": {
+                      "type": "integer",
+                      "example": 20
+                    },
                     "items": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/ScholarshipSummary" }
+                      "items": {
+                        "$ref": "#/components/schemas/ScholarshipSummary"
+                      }
                     }
                   }
                 }
@@ -225,14 +297,18 @@
     },
     "/api/scholarships/{scholarship_id}": {
       "get": {
-        "tags": ["Scholarships"],
+        "tags": [
+          "Scholarships"
+        ],
         "summary": "장학금 공고 상세 조회",
         "parameters": [
           {
             "name": "scholarship_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" },
+            "schema": {
+              "type": "integer"
+            },
             "description": "장학금 ID"
           }
         ],
@@ -241,7 +317,9 @@
             "description": "조회 성공",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ScholarshipDetail" }
+                "schema": {
+                  "$ref": "#/components/schemas/ScholarshipDetail"
+                }
               }
             }
           },
@@ -249,7 +327,9 @@
             "description": "해당 장학금을 찾을 수 없음",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -258,23 +338,36 @@
     },
     "/api/contests": {
       "get": {
-        "tags": ["Contests"],
+        "tags": [
+          "Contests"
+        ],
         "summary": "공모전/대회 목록 조회",
         "parameters": [
           {
             "name": "page",
             "in": "query",
-            "schema": { "type": "integer", "default": 1, "minimum": 1 }
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
           },
           {
             "name": "size",
             "in": "query",
-            "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 100 }
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
           },
           {
             "name": "keyword",
             "in": "query",
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "검색 키워드 (제목/주최기관)"
           },
           {
@@ -282,7 +375,15 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["IT", "디자인", "마케팅", "학술", "창업", "예술", "기타"]
+              "enum": [
+                "IT",
+                "디자인",
+                "마케팅",
+                "학술",
+                "창업",
+                "예술",
+                "기타"
+              ]
             },
             "description": "공모전 분야"
           },
@@ -291,7 +392,13 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["교내", "교외", "기업", "정부", "기타"]
+              "enum": [
+                "교내",
+                "교외",
+                "기업",
+                "정부",
+                "기타"
+              ]
             },
             "description": "주최 기관 유형"
           },
@@ -300,7 +407,11 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["개인", "팀", "개인/팀"]
+              "enum": [
+                "개인",
+                "팀",
+                "개인/팀"
+              ]
             },
             "description": "참가 형태"
           },
@@ -309,7 +420,12 @@
             "in": "query",
             "schema": {
               "type": "string",
-              "enum": ["deadline_asc", "deadline_desc", "prize_desc", "latest"],
+              "enum": [
+                "deadline_asc",
+                "deadline_desc",
+                "prize_desc",
+                "latest"
+              ],
               "default": "deadline_asc"
             }
           }
@@ -322,12 +438,20 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "total": { "type": "integer" },
-                    "page": { "type": "integer" },
-                    "size": { "type": "integer" },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "size": {
+                      "type": "integer"
+                    },
                     "items": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/ContestSummary" }
+                      "items": {
+                        "$ref": "#/components/schemas/ContestSummary"
+                      }
                     }
                   }
                 }
@@ -339,14 +463,18 @@
     },
     "/api/contests/{contest_id}": {
       "get": {
-        "tags": ["Contests"],
+        "tags": [
+          "Contests"
+        ],
         "summary": "공모전/대회 상세 조회",
         "parameters": [
           {
             "name": "contest_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -354,7 +482,9 @@
             "description": "조회 성공",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ContestDetail" }
+                "schema": {
+                  "$ref": "#/components/schemas/ContestDetail"
+                }
               }
             }
           },
@@ -362,7 +492,9 @@
             "description": "해당 공모전을 찾을 수 없음",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -371,7 +503,9 @@
     },
     "/api/recommendations": {
       "get": {
-        "tags": ["Recommendations"],
+        "tags": [
+          "Recommendations"
+        ],
         "summary": "맞춤 추천 목록 조회",
         "parameters": [
           {
@@ -380,14 +514,22 @@
             "required": true,
             "schema": {
               "type": "string",
-              "enum": ["scholarship", "contest"]
+              "enum": [
+                "scholarship",
+                "contest"
+              ]
             },
             "description": "추천 대상 종류"
           },
           {
             "name": "limit",
             "in": "query",
-            "schema": { "type": "integer", "default": 10, "minimum": 1, "maximum": 50 },
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 50
+            },
             "description": "추천 개수"
           }
         ],
@@ -401,11 +543,16 @@
                   "properties": {
                     "type": {
                       "type": "string",
-                      "enum": ["scholarship", "contest"]
+                      "enum": [
+                        "scholarship",
+                        "contest"
+                      ]
                     },
                     "items": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/RecommendationItem" }
+                      "items": {
+                        "$ref": "#/components/schemas/RecommendationItem"
+                      }
                     }
                   }
                 }
@@ -416,7 +563,9 @@
             "description": "인증 필요",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -425,23 +574,36 @@
     },
     "/api/notifications": {
       "get": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "알림 목록 조회",
         "parameters": [
           {
             "name": "page",
             "in": "query",
-            "schema": { "type": "integer", "default": 1, "minimum": 1 }
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
           },
           {
             "name": "size",
             "in": "query",
-            "schema": { "type": "integer", "default": 20, "minimum": 1, "maximum": 100 }
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
           },
           {
             "name": "is_read",
             "in": "query",
-            "schema": { "type": "boolean" },
+            "schema": {
+              "type": "boolean"
+            },
             "description": "읽음 여부 필터 (생략 시 전체)"
           }
         ],
@@ -453,13 +615,23 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "total": { "type": "integer" },
-                    "unread_count": { "type": "integer" },
-                    "page": { "type": "integer" },
-                    "size": { "type": "integer" },
+                    "total": {
+                      "type": "integer"
+                    },
+                    "unread_count": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "size": {
+                      "type": "integer"
+                    },
                     "items": {
                       "type": "array",
-                      "items": { "$ref": "#/components/schemas/Notification" }
+                      "items": {
+                        "$ref": "#/components/schemas/Notification"
+                      }
                     }
                   }
                 }
@@ -470,7 +642,9 @@
             "description": "인증 필요",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -479,14 +653,18 @@
     },
     "/api/notifications/{notification_id}/read": {
       "patch": {
-        "tags": ["Notifications"],
+        "tags": [
+          "Notifications"
+        ],
         "summary": "알림 읽음 처리",
         "parameters": [
           {
             "name": "notification_id",
             "in": "path",
             "required": true,
-            "schema": { "type": "integer" }
+            "schema": {
+              "type": "integer"
+            }
           }
         ],
         "responses": {
@@ -494,7 +672,9 @@
             "description": "읽음 처리 성공",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Notification" }
+                "schema": {
+                  "$ref": "#/components/schemas/Notification"
+                }
               }
             }
           },
@@ -502,7 +682,9 @@
             "description": "인증 필요",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           },
@@ -510,7 +692,9 @@
             "description": "알림을 찾을 수 없음",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               }
             }
           }
@@ -529,68 +713,167 @@
     "schemas": {
       "SignupRequest": {
         "type": "object",
-        "required": ["email", "password", "name", "student_id", "college", "department", "grade"],
+        "required": [
+          "email",
+          "password",
+          "name",
+          "student_id",
+          "college",
+          "department",
+          "grade"
+        ],
         "properties": {
-          "email": { "type": "string", "format": "email", "example": "student@kangwon.ac.kr" },
-          "password": { "type": "string", "format": "password", "minLength": 8, "example": "Passw0rd!" },
-          "name": { "type": "string", "example": "홍길동" },
-          "student_id": { "type": "string", "example": "202012345" },
-          "college": { "type": "string", "example": "IT대학", "description": "단과대학" },
-          "department": { "type": "string", "example": "컴퓨터공학과" },
-          "grade": { "type": "integer", "minimum": 1, "maximum": 6, "example": 3 },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "student@kangwon.ac.kr"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "example": "Passw0rd!"
+          },
+          "name": {
+            "type": "string",
+            "example": "홍길동"
+          },
+          "student_id": {
+            "type": "string",
+            "example": "202012345"
+          },
+          "college": {
+            "type": "string",
+            "example": "IT대학",
+            "description": "단과대학"
+          },
+          "department": {
+            "type": "string",
+            "example": "컴퓨터공학과"
+          },
+          "grade": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6,
+            "example": 3
+          },
           "interests": {
             "type": "array",
-            "items": { "type": "string" },
-            "example": ["IT", "디자인", "창업"],
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "IT",
+              "디자인",
+              "창업"
+            ],
             "description": "관심 분야 (다중 선택)"
           }
         }
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": [
+          "email",
+          "password"
+        ],
         "properties": {
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string", "format": "password" }
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "format": "password"
+          }
         }
       },
       "AuthResponse": {
         "type": "object",
         "properties": {
-          "access_token": { "type": "string", "example": "eyJhbGciOi..." },
-          "token_type": { "type": "string", "example": "bearer" },
-          "user": { "$ref": "#/components/schemas/User" }
+          "access_token": {
+            "type": "string",
+            "example": "eyJhbGciOi..."
+          },
+          "token_type": {
+            "type": "string",
+            "example": "bearer"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
         }
       },
       "User": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer", "example": 1 },
-          "email": { "type": "string", "format": "email" },
-          "name": { "type": "string", "example": "홍길동" },
-          "student_id": { "type": "string", "example": "202012345" },
-          "college": { "type": "string", "example": "IT대학" },
-          "department": { "type": "string", "example": "컴퓨터공학과" },
-          "grade": { "type": "integer", "example": 3 },
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": "string",
+            "example": "홍길동"
+          },
+          "student_id": {
+            "type": "string",
+            "example": "202012345"
+          },
+          "college": {
+            "type": "string",
+            "example": "IT대학"
+          },
+          "department": {
+            "type": "string",
+            "example": "컴퓨터공학과"
+          },
+          "grade": {
+            "type": "integer",
+            "example": 3
+          },
           "interests": {
             "type": "array",
-            "items": { "type": "string" },
-            "example": ["IT", "창업"]
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "IT",
+              "창업"
+            ]
           },
-          "created_at": { "type": "string", "format": "date-time" }
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "UserUpdateRequest": {
         "type": "object",
         "description": "수정할 필드만 포함 (부분 업데이트 가능)",
         "properties": {
-          "name": { "type": "string" },
-          "college": { "type": "string" },
-          "department": { "type": "string" },
-          "grade": { "type": "integer", "minimum": 1, "maximum": 6 },
+          "name": {
+            "type": "string"
+          },
+          "college": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
           "interests": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
           "current_password": {
             "type": "string",
@@ -609,56 +892,129 @@
         "type": "object",
         "description": "장학금 목록 카드용 요약 정보",
         "properties": {
-          "id": { "type": "integer", "example": 101 },
-          "title": { "type": "string", "example": "2026학년도 1학기 성적우수 장학금" },
-          "organization": { "type": "string", "example": "강원대학교 학생처" },
+          "id": {
+            "type": "integer",
+            "example": 101
+          },
+          "title": {
+            "type": "string",
+            "example": "2026학년도 1학기 성적우수 장학금"
+          },
+          "organization": {
+            "type": "string",
+            "example": "강원대학교 학생처"
+          },
           "category": {
             "type": "string",
-            "enum": ["성적우수", "생활지원", "근로", "외부", "기타"]
+            "enum": [
+              "성적우수",
+              "생활지원",
+              "근로",
+              "외부",
+              "기타"
+            ]
           },
-          "amount": { "type": "integer", "example": 1500000, "description": "지원 금액(원)" },
-          "deadline": { "type": "string", "format": "date", "example": "2026-06-30" },
-          "d_day": { "type": "integer", "example": 35, "description": "마감까지 남은 일수" },
+          "amount": {
+            "type": "integer",
+            "example": 1500000,
+            "description": "지원 금액(원)"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-30"
+          },
+          "d_day": {
+            "type": "integer",
+            "example": 35,
+            "description": "마감까지 남은 일수"
+          },
           "target_grades": {
             "type": "array",
-            "items": { "type": "integer" },
-            "example": [2, 3, 4]
+            "items": {
+              "type": "integer"
+            },
+            "example": [
+              2,
+              3,
+              4
+            ]
           },
           "target_departments": {
             "type": "array",
-            "items": { "type": "string" },
-            "example": ["컴퓨터공학과", "전자공학과"],
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "컴퓨터공학과",
+              "전자공학과"
+            ],
             "description": "비어있으면 전체 학과 대상"
           }
         }
       },
       "ScholarshipDetail": {
         "allOf": [
-          { "$ref": "#/components/schemas/ScholarshipSummary" },
+          {
+            "$ref": "#/components/schemas/ScholarshipSummary"
+          },
           {
             "type": "object",
             "properties": {
-              "description": { "type": "string", "example": "직전 학기 성적 3.5 이상..." },
+              "description": {
+                "type": "string",
+                "example": "직전 학기 성적 3.5 이상..."
+              },
               "eligibility": {
                 "type": "string",
                 "example": "재학생 중 직전 학기 12학점 이상 이수자"
               },
-              "recruit_count": { "type": "integer", "example": 30, "description": "모집 인원" },
-              "application_start": { "type": "string", "format": "date", "example": "2026-05-15" },
-              "application_end": { "type": "string", "format": "date", "example": "2026-06-30" },
+              "recruit_count": {
+                "type": "integer",
+                "example": 30,
+                "description": "모집 인원"
+              },
+              "application_start": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-05-15"
+              },
+              "application_end": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-06-30"
+              },
               "required_documents": {
                 "type": "array",
-                "items": { "type": "string" },
-                "example": ["신청서", "성적증명서", "통장사본"]
+                "items": {
+                  "type": "string"
+                },
+                "example": [
+                  "신청서",
+                  "성적증명서",
+                  "통장사본"
+                ]
               },
               "application_method": {
                 "type": "string",
                 "example": "강원대 학생포털 → 장학 → 신청"
               },
-              "application_url": { "type": "string", "format": "uri" },
-              "contact": { "type": "string", "example": "학생지원과 033-250-XXXX" },
-              "created_at": { "type": "string", "format": "date-time" },
-              "updated_at": { "type": "string", "format": "date-time" }
+              "application_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "contact": {
+                "type": "string",
+                "example": "학생지원과 033-250-XXXX"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
             }
           }
         ]
@@ -666,71 +1022,158 @@
       "ContestSummary": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer", "example": 201 },
-          "title": { "type": "string", "example": "2026 강원 청년 창업 아이디어 공모전" },
-          "host": { "type": "string", "example": "강원도청" },
+          "id": {
+            "type": "integer",
+            "example": 201
+          },
+          "title": {
+            "type": "string",
+            "example": "2026 강원 청년 창업 아이디어 공모전"
+          },
+          "host": {
+            "type": "string",
+            "example": "강원도청"
+          },
           "host_type": {
             "type": "string",
-            "enum": ["교내", "교외", "기업", "정부", "기타"]
+            "enum": [
+              "교내",
+              "교외",
+              "기업",
+              "정부",
+              "기타"
+            ]
           },
           "field": {
             "type": "string",
-            "enum": ["IT", "디자인", "마케팅", "학술", "창업", "예술", "기타"]
+            "enum": [
+              "IT",
+              "디자인",
+              "마케팅",
+              "학술",
+              "창업",
+              "예술",
+              "기타"
+            ]
           },
           "participation_type": {
             "type": "string",
-            "enum": ["개인", "팀", "개인/팀"]
+            "enum": [
+              "개인",
+              "팀",
+              "개인/팀"
+            ]
           },
-          "prize": { "type": "integer", "example": 5000000, "description": "최고 상금(원)" },
-          "deadline": { "type": "string", "format": "date", "example": "2026-07-15" },
-          "d_day": { "type": "integer", "example": 50 },
+          "prize": {
+            "type": "integer",
+            "example": 5000000,
+            "description": "최고 상금(원)"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-15"
+          },
+          "d_day": {
+            "type": "integer",
+            "example": 50
+          },
           "tags": {
             "type": "array",
-            "items": { "type": "string" },
-            "example": ["창업", "청년", "강원"]
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "창업",
+              "청년",
+              "강원"
+            ]
           }
         }
       },
       "ContestDetail": {
         "allOf": [
-          { "$ref": "#/components/schemas/ContestSummary" },
+          {
+            "$ref": "#/components/schemas/ContestSummary"
+          },
           {
             "type": "object",
             "properties": {
-              "description": { "type": "string" },
-              "eligibility": { "type": "string", "example": "강원도 소재 대학 재학생" },
+              "description": {
+                "type": "string"
+              },
+              "eligibility": {
+                "type": "string",
+                "example": "강원도 소재 대학 재학생"
+              },
               "prize_details": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
-                    "rank": { "type": "string", "example": "대상" },
-                    "amount": { "type": "integer", "example": 5000000 },
-                    "count": { "type": "integer", "example": 1 }
+                    "rank": {
+                      "type": "string",
+                      "example": "대상"
+                    },
+                    "amount": {
+                      "type": "integer",
+                      "example": 5000000
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    }
                   }
                 }
               },
-              "application_start": { "type": "string", "format": "date" },
-              "application_end": { "type": "string", "format": "date" },
+              "application_start": {
+                "type": "string",
+                "format": "date"
+              },
+              "application_end": {
+                "type": "string",
+                "format": "date"
+              },
               "schedule": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
-                    "phase": { "type": "string", "example": "1차 심사" },
-                    "date": { "type": "string", "format": "date" }
+                    "phase": {
+                      "type": "string",
+                      "example": "1차 심사"
+                    },
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    }
                   }
                 }
               },
-              "submission_method": { "type": "string" },
+              "submission_method": {
+                "type": "string"
+              },
               "required_documents": {
                 "type": "array",
-                "items": { "type": "string" }
+                "items": {
+                  "type": "string"
+                }
               },
-              "official_url": { "type": "string", "format": "uri" },
-              "contact": { "type": "string" },
-              "created_at": { "type": "string", "format": "date-time" },
-              "updated_at": { "type": "string", "format": "date-time" }
+              "official_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "contact": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
             }
           }
         ]
@@ -741,10 +1184,17 @@
         "properties": {
           "item_type": {
             "type": "string",
-            "enum": ["scholarship", "contest"]
+            "enum": [
+              "scholarship",
+              "contest"
+            ]
           },
-          "scholarship": { "$ref": "#/components/schemas/ScholarshipSummary" },
-          "contest": { "$ref": "#/components/schemas/ContestSummary" },
+          "scholarship": {
+            "$ref": "#/components/schemas/ScholarshipSummary"
+          },
+          "contest": {
+            "$ref": "#/components/schemas/ContestSummary"
+          },
           "match_score": {
             "type": "number",
             "format": "float",
@@ -753,35 +1203,63 @@
           },
           "reasons": {
             "type": "array",
-            "items": { "type": "string" },
-            "example": ["학과 일치", "관심분야 일치", "학년 조건 충족"]
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "학과 일치",
+              "관심분야 일치",
+              "학년 조건 충족"
+            ]
           }
         }
       },
       "Notification": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer", "example": 301 },
+          "id": {
+            "type": "integer",
+            "example": 301
+          },
           "type": {
             "type": "string",
-            "enum": ["deadline", "new_recommendation", "system"],
+            "enum": [
+              "deadline",
+              "new_recommendation",
+              "system"
+            ],
             "description": "마감임박 / 신규추천 / 시스템 공지"
           },
-          "title": { "type": "string", "example": "마감 3일 전 - 성적우수 장학금" },
-          "message": { "type": "string", "example": "신청 마감이 3일 남았습니다." },
+          "title": {
+            "type": "string",
+            "example": "마감 3일 전 - 성적우수 장학금"
+          },
+          "message": {
+            "type": "string",
+            "example": "신청 마감이 3일 남았습니다."
+          },
           "link_url": {
             "type": "string",
             "example": "/scholarships/101",
             "description": "클릭 시 이동할 프론트 경로"
           },
-          "is_read": { "type": "boolean", "example": false },
-          "created_at": { "type": "string", "format": "date-time" }
+          "is_read": {
+            "type": "boolean",
+            "example": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "ErrorResponse": {
         "type": "object",
         "properties": {
-          "detail": { "type": "string", "example": "이메일이 이미 존재합니다." }
+          "detail": {
+            "type": "string",
+            "example": "이메일이 이미 존재합니다."
+          }
         }
       }
     }
