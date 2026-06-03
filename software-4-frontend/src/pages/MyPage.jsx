@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { api } from '../lib/api.js'
 import { interests as INTEREST_OPTIONS } from '../data/items.js'
+import { getBookmarks } from '../lib/bookmark.js'
+import { fetchItems } from '../data/itemsApi.js'
+import ItemCard from '../components/ItemCard.jsx'
 
 export default function MyPage() {
   const [studentId, setStudentId] = useState('')
@@ -10,6 +13,7 @@ export default function MyPage() {
   const [passwords, setPasswords] = useState({
     current_password: '', new_password: '', new_password_confirm: ''
   })
+  const [bookmarkedItems, setBookmarkedItems] = useState([])
   const [savedAt, setSavedAt] = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -27,6 +31,13 @@ export default function MyPage() {
             interests: user.interests || []
           })
         }
+
+        // 북마크 목록 로드
+        const allItems = await fetchItems()
+        const bIds = getBookmarks()
+        const bookmarked = allItems.filter(item => bIds.includes(item.id))
+        setBookmarkedItems(bookmarked)
+
         setLoading(false)
       } catch (err) {
         console.error(err)
@@ -35,6 +46,12 @@ export default function MyPage() {
     }
     fetchData()
   }, [])
+
+  const handleBookmarkChange = (itemId, isStarred) => {
+    if (!isStarred) {
+      setBookmarkedItems(prev => prev.filter(item => item.id !== itemId))
+    }
+  }
 
   const update = (key, value) => setProfile((p) => ({ ...p, [key]: value }))
   const updatePassword = (key, value) => setPasswords((p) => ({ ...p, [key]: value }))
@@ -214,6 +231,33 @@ export default function MyPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* 북마크한 장학·대회 공고 */}
+        <div className="card">
+          <div className="card__title">
+            <h3>관심 공고 (북마크)</h3>
+            <span className="text-muted" style={{ fontSize: 13 }}>
+              내가 별표(★) 해둔 장학 및 공모전 목록입니다
+            </span>
+          </div>
+
+          {bookmarkedItems.length === 0 ? (
+            <div className="empty-state" style={{ padding: '24px 0' }}>
+              아직 별표로 관심 지정해 둔 공고가 없습니다. <br />
+              장학/대회 리스트나 피드에서 별표를 클릭해 보세요!
+            </div>
+          ) : (
+            <div className="list-grid" style={{ marginTop: 12 }}>
+              {bookmarkedItems.map((item) => (
+                <ItemCard 
+                  key={item.id} 
+                  item={item} 
+                  onBookmarkChange={handleBookmarkChange} 
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex justify-between items-center mt-4">

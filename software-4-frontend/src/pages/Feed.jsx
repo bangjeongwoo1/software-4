@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../lib/api.js'
 import { normalizeScholarship, normalizeContest } from '../data/itemsApi.js'
 import ItemCard from '../components/ItemCard.jsx'
+import { parseRobustDate } from '../lib/dateUtils.js'
 
 export default function Feed() {
   const [tab, setTab] = useState('recommend') // 'recommend' | 'views'
@@ -18,6 +19,9 @@ export default function Feed() {
         const user = await api.getMe()
         setUserProfile(user)
 
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+
         // 1. 추천 목록 로드
         const sRecs = await api.getRecommendations('scholarship', 6)
         const cRecs = await api.getRecommendations('contest', 6)
@@ -33,7 +37,13 @@ export default function Feed() {
             matchScore: item.match_score,
             reasons: item.reasons
           }))
-        ].sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+        ].filter(it => {
+          if (it.deadline) {
+            const d = parseRobustDate(it.deadline)
+            if (d && d < today) return false
+          }
+          return true
+        }).sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
 
         setRecommendList(normalizedRecs)
 
@@ -43,7 +53,13 @@ export default function Feed() {
         const normalizedViews = [
           ...(sRes?.items || []).map(normalizeScholarship),
           ...(cRes?.items || []).map(normalizeContest)
-        ].sort((a, b) => b.views - a.views)
+        ].filter(it => {
+          if (it.deadline) {
+            const d = parseRobustDate(it.deadline)
+            if (d && d < today) return false
+          }
+          return true
+        }).sort((a, b) => b.views - a.views)
 
         setViewsList(normalizedViews)
         setLoading(false)

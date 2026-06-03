@@ -46,7 +46,7 @@ async def signup(body: SignupRequest):
     if invalid:
         raise HTTPException(status_code=400, detail=f"유효하지 않은 관심분야: {invalid}")
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(
             f"{config.SUPABASE_URL}/auth/v1/signup",
             headers=_AUTH_HEADERS,
@@ -93,7 +93,7 @@ async def signup(body: SignupRequest):
 
 @router.post("/login", response_model=AuthResponse)
 async def login(body: LoginRequest):
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(
             f"{config.SUPABASE_URL}/auth/v1/token?grant_type=password",
             headers=_AUTH_HEADERS,

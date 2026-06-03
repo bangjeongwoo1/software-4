@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { fetchItemById } from '../data/itemsApi.js'
+import { isBookmarked, toggleBookmark } from '../lib/bookmark.js'
 
 export default function ItemDetail() {
   const { id } = useParams()
@@ -8,12 +9,26 @@ export default function ItemDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const [starred, setStarred] = useState(false)
+
   useEffect(() => {
     fetchItemById(id)
-      .then(setItem)
+      .then((data) => {
+        setItem(data)
+        if (data) {
+          setStarred(isBookmarked(data.id))
+        }
+      })
       .catch(setError)
       .finally(() => setLoading(false))
   }, [id])
+
+  const handleStarToggle = () => {
+    if (item) {
+      toggleBookmark(item.id)
+      setStarred(!starred)
+    }
+  }
 
   if (loading) {
     return (
@@ -135,8 +150,11 @@ export default function ItemDetail() {
           >
             {isContest ? '대회 페이지로 이동 ↗' : '장학 페이지로 이동 ↗'}
           </a>
-          <button className="btn btn-secondary btn-block mt-2">
-            관심 공고로 저장
+          <button 
+            className={`btn btn-block mt-2 ${starred ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={handleStarToggle}
+          >
+            {starred ? '★ 관심 공고 해제' : '☆ 관심 공고로 저장'}
           </button>
         </aside>
       </div>

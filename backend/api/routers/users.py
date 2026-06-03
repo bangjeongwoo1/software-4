@@ -26,8 +26,37 @@ def _load_user(student_id: str) -> User:
 
     account_resp = db.table("user_account").select("student_id").eq("student_id", student_id).execute()
     if not account_resp.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
-
+        # 이전에 가입 후 DB 적재가 누락되었거나 대시보드 직접 생성된 사용자 복구
+        try:
+            db.table("user_account").upsert(
+                {"student_id": student_id, "password_hash": "[AUTO_CREATED]"},
+                on_conflict="student_id",
+            ).execute()
+            db.table("user_profile").upsert(
+                {
+                    "student_id": student_id,
+                    "name": "신규 사용자",
+                    "college": "미지정",
+                    "department": "미지정",
+                    "grade": "1학년",
+                    "student_type": "재학생",
+                    "campus": "춘천",
+                },
+                on_conflict="student_id",
+            ).execute()
+        except Exception as e:
+            # RLS(Row-Level Security) 보안 정책 등으로 인서트가 거부되는 경우 예외 처리
+            print(f"⚠️ RLS 또는 DB 제약으로 인해 자동 복구가 건너뛰어졌습니다: {e}")
+            
+        profile = {
+            "name": "신규 사용자",
+            "college": "미지정",
+            "department": "미지정",
+            "grade": "1학년",
+            "student_type": "재학생",
+            "campus": "춘천",
+        }
+    
     grade_str = profile.get("grade")
     grade_int = None
     if grade_str and grade_str != "전학년":
@@ -84,6 +113,10 @@ async def update_me(body: UserUpdateRequest, student_id: str = Depends(get_curre
 
     if profile_patch:
         profile_patch["student_id"] = student_id
+        if "student_type" not in profile_patch or profile_patch["student_type"] is None:
+            profile_patch["student_type"] = "재학생"
+        if "campus" not in profile_patch or profile_patch["campus"] is None:
+            profile_patch["campus"] = "춘천"
         db.table("user_profile").upsert(profile_patch, on_conflict="student_id").execute()
 
     if body.interests is not None:
@@ -94,7 +127,7 @@ async def update_me(body: UserUpdateRequest, student_id: str = Depends(get_curre
             ).execute()
 
     if body.new_password and body.current_password:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.put(
                 f"{config.SUPABASE_URL}/auth/v1/user",
                 headers={**_AUTH_HEADERS},

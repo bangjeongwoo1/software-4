@@ -20,6 +20,7 @@ def get_current_user(
             "apikey": config.SUPABASE_KEY,
             "Authorization": f"Bearer {token}",
         },
+        timeout=30.0,
     )
 
     if resp.status_code != 200:
