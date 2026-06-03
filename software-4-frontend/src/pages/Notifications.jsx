@@ -1,22 +1,73 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { notifications as initialNotis } from '../data/notifications.js'
-import { currentUser } from '../data/user.js'
+import { api } from '../lib/api.js'
 
 export default function Notifications() {
-  const [list, setList] = useState(initialNotis)
-  const [prefs, setPrefs] = useState(currentUser.notificationPrefs)
+  const [list, setList] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [userProfile, setUserProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const togglePref = (key) =>
-    setPrefs((p) => ({ ...p, [key]: !p[key] }))
+  const fetchNotis = async () => {
+    try {
+      const res = await api.getNotifications({ page: 1, size: 50 })
+      setList(res.items || [])
+      setUnreadCount(res.unread_count || 0)
+    } catch (err) {
+      console.error('Error fetching notifications:', err)
+      setError(err)
+    }
+  }
 
-  const markRead = (id) =>
-    setList((l) => l.map((n) => (n.id === id ? { ...n, unread: false } : n)))
+  useEffect(() => {
+    const init = async () => {
+      try {
+        setLoading(true)
+        const user = await api.getMe()
+        setUserProfile(user)
+        await fetchNotis()
+        setLoading(false)
+      } catch (err) {
+        console.error(err)
+        setError(err)
+        setLoading(false)
+      }
+    }
+    init()
+  }, [])
 
-  const markAllRead = () =>
-    setList((l) => l.map((n) => ({ ...n, unread: false })))
+  const markRead = async (id) => {
+    try {
+      await api.readNotification(id)
+      await fetchNotis()
+    } catch (err) {
+      console.error('Error marking notification as read:', err)
+    }
+  }
 
-  const unreadCount = list.filter((n) => n.unread).length
+  const markAllRead = async () => {
+    try {
+      const unreadList = list.filter((n) => !n.is_read)
+      await Promise.all(unreadList.map((n) => api.readNotification(n.id)))
+      await fetchNotis()
+    } catch (err) {
+      console.error('Error marking all as read:', err)
+    }
+  }
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>알림을 불러오는 중...</div>
+
+  if (error) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          알림을 불러오지 못했습니다.
+          <div className="text-muted mt-3">{error.message}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -26,23 +77,22 @@ export default function Notifications() {
       </div>
 
       <div className="row">
-        {/* 알림 수신 설정 */}
+        {/* 알림 수신 설정 (더미/로컬 상태 유지) */}
         <div className="col" style={{ maxWidth: 360, flex: '0 0 360px' }}>
           <div className="card">
             <div className="card__title">
-              <h3>희망 수신 방식</h3>
+              <h3>희망 수신 방식 (시뮬레이션)</h3>
             </div>
 
             <div className="option-row">
               <div>
                 <div className="option-row__label">이메일</div>
-                <div className="option-row__hint">{currentUser.email}</div>
+                <div className="option-row__hint">{userProfile?.email || '학번@student.kangwon.ac.kr'}</div>
               </div>
               <label className="switch">
                 <input
                   type="checkbox"
-                  checked={prefs.email}
-                  onChange={() => togglePref('email')}
+                  defaultChecked={true}
                 />
                 <span className="switch__slider" />
               </label>
@@ -51,13 +101,12 @@ export default function Notifications() {
             <div className="option-row">
               <div>
                 <div className="option-row__label">SMS</div>
-                <div className="option-row__hint">{currentUser.phone}</div>
+                <div className="option-row__hint">휴대폰 웹 알림</div>
               </div>
               <label className="switch">
                 <input
                   type="checkbox"
-                  checked={prefs.sms}
-                  onChange={() => togglePref('sms')}
+                  defaultChecked={false}
                 />
                 <span className="switch__slider" />
               </label>
@@ -71,8 +120,7 @@ export default function Notifications() {
               <label className="switch">
                 <input
                   type="checkbox"
-                  checked={prefs.push}
-                  onChange={() => togglePref('push')}
+                  defaultChecked={true}
                 />
                 <span className="switch__slider" />
               </label>
@@ -84,10 +132,7 @@ export default function Notifications() {
               <label className="form-label">마감 임박 알림 (며칠 전)</label>
               <select
                 className="form-control"
-                value={prefs.deadlineReminderDays}
-                onChange={(e) =>
-                  setPrefs((p) => ({ ...p, deadlineReminderDays: Number(e.target.value) }))
-                }
+                defaultValue={3}
               >
                 {[1, 3, 7, 14].map((d) => (
                   <option key={d} value={d}>{d}일 전</option>
@@ -95,7 +140,7 @@ export default function Notifications() {
               </select>
             </div>
 
-            <button className="btn btn-primary btn-block">설정 저장</button>
+            <button className="btn btn-primary btn-block" onClick={() => alert('수신 설정이 저장되었습니다.')}>설정 저장</button>
           </div>
         </div>
 
@@ -124,24 +169,40 @@ export default function Notifications() {
               {list.length === 0 ? (
                 <div className="empty-state">알림이 없습니다.</div>
               ) : (
-                list.map((n) => (
-                  <Link
-                    key={n.id}
-                    to={`/detail/${n.relatedId}`}
-                    onClick={() => markRead(n.id)}
-                    className={'notification-item' + (n.unread ? ' unread' : '')}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                  >
-                    {n.unread && <div className="notification-item__dot" />}
-                    <div className="notification-item__body">
-                      <div className="notification-item__title">{n.title}</div>
-                      <div className="text-secondary" style={{ fontSize: 13 }}>
-                        {n.body}
+                list.map((n) => {
+                  // link_url이 '/scholarships/101' 형태이면 '/detail/s-101' 형식으로 프론트 라우트 매핑
+                  let linkTo = '/list'
+                  if (n.link_url) {
+                    if (n.link_url.includes('scholarship')) {
+                      const match = n.link_url.match(/\d+/)
+                      if (match) linkTo = `/detail/s-${match[0]}`
+                    } else if (n.link_url.includes('contest')) {
+                      const match = n.link_url.match(/\d+/)
+                      if (match) linkTo = `/detail/c-${match[0]}`
+                    }
+                  }
+
+                  return (
+                    <Link
+                      key={n.id}
+                      to={linkTo}
+                      onClick={() => markRead(n.id)}
+                      className={'notification-item' + (!n.is_read ? ' unread' : '')}
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      {!n.is_read && <div className="notification-item__dot" />}
+                      <div className="notification-item__body">
+                        <div className="notification-item__title">{n.title}</div>
+                        <div className="text-secondary" style={{ fontSize: 13 }}>
+                          {n.message}
+                        </div>
                       </div>
-                    </div>
-                    <div className="notification-item__time">{n.time}</div>
-                  </Link>
-                ))
+                      <div className="notification-item__time">
+                        {new Date(n.created_at).toLocaleDateString('ko-KR')}
+                      </div>
+                    </Link>
+                  )
+                })
               )}
             </div>
           </div>

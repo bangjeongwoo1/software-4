@@ -7,8 +7,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        VITE_SUPABASE_URL: ${SUPABASE_URL}
-        VITE_SUPABASE_KEY: ${SUPABASE_KEY}
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_KEY: ${VITE_SUPABASE_KEY}
     image: software-4-frontend:prod
     container_name: software-4-frontend
     ports:
