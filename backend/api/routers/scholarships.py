@@ -81,7 +81,7 @@ def _normalize_detail(row: dict) -> ScholarshipDetail:
         summary=c2.get("summary") or llm.get("summary"),
         eligibility=c2.get("eligibility_text"),
         application_method=c2.get("application_method_text"),
-        application_url=c2.get("related_document_url"),
+        application_url=c2.get("detail_url"),
         application_start=llm.get("application_start_date"),
         application_end=llm.get("application_close_date"),
         contact=n2.get("contact_phone"),
