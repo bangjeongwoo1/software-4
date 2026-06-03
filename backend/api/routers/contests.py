@@ -26,11 +26,13 @@ def _normalize(row: dict) -> ContestSummary:
 
     title = d1.get("title") or row.get("title")
     host = d1.get("host") or d2.get("host_organization")
+    target = d1.get("target_text")
 
     return ContestSummary(
         id=row["contest_id"],
         title=title,
         host=host,
+        target = target,
         field=d2.get("main_field"),
         prize=d2.get("award_text"),
         deadline=d1.get("reception_end"),

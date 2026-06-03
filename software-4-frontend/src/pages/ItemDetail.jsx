@@ -99,14 +99,14 @@ export default function ItemDetail() {
             {item.type === 'scholarship' ? (
               <ul>
                 <li>지원 금액 / 혜택: <strong>{item.amount}</strong></li>
-                <li>대상 캠퍼스: {item.department}</li>
+                <li>대상 캠퍼스: {item.campus}</li>
                 <li>대상 학년: {item.targetGrade.length ? `${item.targetGrade.join(', ')}학년` : '-'}</li>
                 {item.minGpa > 0 && <li>최소 평점: {item.minGpa}</li>}
                 <li>마감일: <strong>{item.deadline}</strong></li>
               </ul>
             ) : (
               <ul>
-                <li>참가 대상: {item.department || '-'}</li>
+                <li>참가 대상: {item.target || '-'}</li>
                 <li>시상/혜택: {item.amount || '-'}</li>
                 <li>분야: {item.mainField || '-'}</li>
                 <li>접수 마감: {item.deadline || '-'}</li>
