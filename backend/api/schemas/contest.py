@@ -7,6 +7,7 @@ class ContestSummary(BaseModel):
     id: int
     title: str | None = None
     host: str | None = None
+    target: str | None = None
     host_type: str | None = None
     field: str | None = None
     prize: str | None = None

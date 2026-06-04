@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class ScholarshipSummary(BaseModel):
     id: int
     title: str | None = None
+    summary: str | None = None
+    campus: str | None = None
     organization: str | None = None
     category: str | None = None
     amount: str | None = None

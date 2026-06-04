@@ -11,7 +11,7 @@ _JOIN_SELECT = (
     "scholarship_id,source_type,title,detail_url,status,"
     "customized_detail_1(title,scholarship_type,benefit_type,summary),"
     "customized_detail_2(campus_text,grade_min,grade_max,gpa_prev_semester_value,"
-    "amount_text,eligibility_text,application_method_text,related_document_url),"
+    "amount_text,selection_period_text, eligibility_text,application_method_text,related_document_url),"
     "notice_detail_1(campus_text,author,registered_at,view_count),"
     "notice_detail_2(title,campus_text,contact_phone,raw_text,attachment_file_url,image_file_url),"
     "notice_llm(notice_title,summary,amount_text,department_text,grade_text,"
@@ -36,6 +36,7 @@ def _normalize(row: dict) -> ScholarshipSummary:
     llm = llm[0] if isinstance(llm, list) else llm
 
     title = c1.get("title") or n2.get("title") or llm.get("notice_title") or row.get("title")
+    summary = c1.get("summary") or llm.get("summary")
     amount = c2.get("amount_text") or llm.get("amount_text")
     deadline = c2.get("selection_period_text") or llm.get("application_close_date")
     organization = n1.get("author")
@@ -53,6 +54,8 @@ def _normalize(row: dict) -> ScholarshipSummary:
     return ScholarshipSummary(
         id=row["scholarship_id"],
         title=title,
+        summary = summary,
+        campus = campus_text,
         organization=organization,
         category=category,
         amount=amount,
@@ -78,7 +81,6 @@ def _normalize_detail(row: dict) -> ScholarshipDetail:
 
     return ScholarshipDetail(
         **summary.model_dump(),
-        summary=c2.get("summary") or llm.get("summary"),
         eligibility=c2.get("eligibility_text"),
         application_method=c2.get("application_method_text"),
         application_url=c2.get("detail_url"),
