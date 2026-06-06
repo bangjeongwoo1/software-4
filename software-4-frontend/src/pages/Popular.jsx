@@ -1,12 +1,35 @@
-import { useMemo, useState } from 'react'
-import { items } from '../data/items.js'
-import { currentUser } from '../data/user.js'
+import { useEffect, useMemo, useState } from 'react'
+import { fetchItems } from '../data/itemsApi.js'
+import { api } from '../lib/api.js'
 import ItemCard from '../components/ItemCard.jsx'
 
 export default function Popular() {
   const [department, setDepartment] = useState('all')
   const [grade, setGrade] = useState('all')
   const [type, setType] = useState('all')
+  const [items, setItems] = useState([])
+  const [userProfile, setUserProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true)
+        const allItems = await fetchItems()
+        setItems(allItems)
+
+        const user = await api.getMe()
+        setUserProfile(user)
+        setLoading(false)
+      } catch (err) {
+        console.error(err)
+        setError(err)
+        setLoading(false)
+      }
+    }
+    loadData()
+  }, [])
 
   const filtered = useMemo(() => {
     return items
@@ -18,7 +41,20 @@ export default function Popular() {
         return true
       })
       .sort((a, b) => b.views - a.views)
-  }, [department, grade, type])
+  }, [items, department, grade, type])
+
+  if (loading) return <div style={{ padding: 40, textAlign: 'center' }}>인기 공고를 불러오는 중...</div>
+
+  if (error) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          데이터를 불러오지 못했습니다.
+          <div className="text-muted mt-3">{error.message}</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -51,7 +87,9 @@ export default function Popular() {
         >
           <option value="all">전체 학과</option>
           <option value="소프트웨어학과">소프트웨어학과</option>
+          <option value="컴퓨터공학과">컴퓨터공학과</option>
           <option value="공과대학">공과대학</option>
+          <option value="IT대학">IT대학</option>
         </select>
 
         <select
@@ -61,7 +99,7 @@ export default function Popular() {
           onChange={(e) => setGrade(e.target.value)}
         >
           <option value="all">전체 학년</option>
-          {[1, 2, 3, 4].map((g) => (
+          {[1, 2, 3, 4, 5, 6].map((g) => (
             <option key={g} value={g}>{g}학년</option>
           ))}
         </select>
@@ -70,8 +108,12 @@ export default function Popular() {
           className="btn btn-ghost btn-sm"
           style={{ marginLeft: 'auto' }}
           onClick={() => {
-            setDepartment(currentUser.department)
-            setGrade(String(currentUser.grade))
+            if (userProfile) {
+              setDepartment(userProfile.department || 'all')
+              setGrade(userProfile.grade ? String(userProfile.grade) : 'all')
+            } else {
+              alert('로그인이 필요한 기능입니다.')
+            }
           }}
         >
           내 조건으로 자동 설정

@@ -2,52 +2,41 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Kangwon National University Scholarship & Contest Recommendation API",
-    "description": "강원대학교 장학 및 경진대회/공모전 정보 추천 서비스의 Supabase REST & Auth API 명세서입니다. `software-4-frontend` 소스코드(Login.jsx, Signup.jsx, MyPage.jsx, itemsApi.js) 및 SQL 스키마를 기반으로 작성되었습니다.",
-    "version": "1.1.0"
+    "description": "Front → FastAPI Back → DB 구조의 장학 및 공모전 추천 서비스 API 명세서입니다.",
+    "version": "2.0.0"
   },
   "servers": [
     {
-      "url": "https://{project-id}.supabase.co",
-      "description": "Supabase API Server",
-      "variables": {
-        "project-id": {
-          "default": "your-supabase-project",
-          "description": "Supabase 프로젝트 고유 식별자"
-        }
-      }
+      "url": "http://localhost:8000",
+      "description": "FastAPI Local Server"
     }
   ],
   "security": [
-    {
-      "apiKeyHeader": []
-    },
     {
       "bearerAuth": []
     }
   ],
   "paths": {
-    "/auth/v1/signup": {
+    "/api/auth/signup": {
       "post": {
-        "tags": ["Authentication"],
+        "tags": [
+          "Authentication"
+        ],
         "summary": "회원가입",
-        "description": "학번을 이메일 형식(`{student_id}@student.kangwon.ac.kr`)으로 변환하여 Supabase Auth에 회원가입합니다. 학번은 9자리 숫자여야 합니다. (Signup.jsx 참고)",
+        "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AuthSignUpRequest"
-              },
-              "example": {
-                "email": "202113575@student.kangwon.ac.kr",
-                "password": "password123"
+                "$ref": "#/components/schemas/SignupRequest"
               }
             }
           }
         },
         "responses": {
-          "200": {
-            "description": "회원가입 성공 (이메일 확인 대기 상태일 수 있음)",
+          "201": {
+            "description": "회원가입 성공",
             "content": {
               "application/json": {
                 "schema": {
@@ -57,37 +46,31 @@
             }
           },
           "400": {
-            "description": "잘못된 요청 또는 이미 가입된 학번 (`User already registered` 메시지 포함)"
+            "description": "잘못된 요청 (이메일 중복 등)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/auth/v1/token": {
+    "/api/auth/login": {
       "post": {
-        "tags": ["Authentication"],
-        "summary": "로그인 및 JWT 토큰 발급",
-        "description": "학번 이메일과 비밀번호로 인증하고 JWT 액세스 토큰을 발급받습니다. (Login.jsx의 `signInWithPassword` 참고)",
-        "parameters": [
-          {
-            "name": "grant_type",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "enum": ["password"]
-            }
-          }
+        "tags": [
+          "Authentication"
         ],
+        "summary": "로그인",
+        "security": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AuthSignInRequest"
-              },
-              "example": {
-                "email": "202113575@student.kangwon.ac.kr",
-                "password": "password123"
+                "$ref": "#/components/schemas/LoginRequest"
               }
             }
           }
@@ -103,49 +86,473 @@
               }
             }
           },
+          "401": {
+            "description": "인증 실패",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "내 정보 조회",
+        "responses": {
+          "200": {
+            "description": "조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "인증 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "내 프로필 수정",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "수정 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
           "400": {
-            "description": "아이디 또는 비밀번호 오류"
-          }
-        }
-      }
-    },
-    "/auth/v1/logout": {
-      "post": {
-        "tags": ["Authentication"],
-        "summary": "로그아웃",
-        "description": "현재 세션을 만료시키고 로그아웃합니다.",
-        "responses": {
-          "204": {
-            "description": "로그아웃 완료"
+            "description": "잘못된 요청",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           },
           "401": {
-            "description": "인증 토큰 없음 또는 만료"
+            "description": "인증 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/auth/v1/user": {
+    "/api/scholarships": {
       "get": {
-        "tags": ["Authentication"],
-        "summary": "현재 로그인 사용자 정보 조회",
-        "description": "JWT 토큰 기반으로 로그인 중인 사용자 정보를 반환합니다. MyPage.jsx에서 `supabase.auth.getUser()`로 호출되며, 반환된 `email`에서 `@` 앞 부분을 `student_id`로 사용합니다.",
+        "tags": [
+          "Scholarships"
+        ],
+        "summary": "장학금 공고 목록 조회",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            },
+            "description": "페이지 번호"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            },
+            "description": "페이지 당 항목 수"
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "검색 키워드 (제목/주관기관)"
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "성적우수",
+                "생활지원",
+                "근로",
+                "외부",
+                "기타"
+              ]
+            },
+            "description": "장학금 카테고리"
+          },
+          {
+            "name": "grade",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 6
+            },
+            "description": "지원 가능 학년 필터"
+          },
+          {
+            "name": "department",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "지원 가능 학과 필터"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "deadline_asc",
+                "deadline_desc",
+                "latest"
+              ],
+              "default": "deadline_asc"
+            },
+            "description": "정렬 기준"
+          }
+        ],
         "responses": {
           "200": {
-            "description": "성공",
+            "description": "조회 성공",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "id": {
-                      "type": "string",
-                      "format": "uuid",
-                      "description": "Supabase Auth 내부 사용자 UUID"
+                    "total": {
+                      "type": "integer",
+                      "example": 124
                     },
-                    "email": {
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "size": {
+                      "type": "integer",
+                      "example": 20
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ScholarshipSummary"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/scholarships/{scholarship_id}": {
+      "get": {
+        "tags": [
+          "Scholarships"
+        ],
+        "summary": "장학금 공고 상세 조회",
+        "parameters": [
+          {
+            "name": "scholarship_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "장학금 ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScholarshipDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "해당 장학금을 찾을 수 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contests": {
+      "get": {
+        "tags": [
+          "Contests"
+        ],
+        "summary": "공모전/대회 목록 조회",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "keyword",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "검색 키워드 (제목/주최기관)"
+          },
+          {
+            "name": "field",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IT",
+                "디자인",
+                "마케팅",
+                "학술",
+                "창업",
+                "예술",
+                "기타"
+              ]
+            },
+            "description": "공모전 분야"
+          },
+          {
+            "name": "host_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "교내",
+                "교외",
+                "기업",
+                "정부",
+                "기타"
+              ]
+            },
+            "description": "주최 기관 유형"
+          },
+          {
+            "name": "participation_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "개인",
+                "팀",
+                "개인/팀"
+              ]
+            },
+            "description": "참가 형태"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "deadline_asc",
+                "deadline_desc",
+                "prize_desc",
+                "latest"
+              ],
+              "default": "deadline_asc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "size": {
+                      "type": "integer"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ContestSummary"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/contests/{contest_id}": {
+      "get": {
+        "tags": [
+          "Contests"
+        ],
+        "summary": "공모전/대회 상세 조회",
+        "parameters": [
+          {
+            "name": "contest_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContestDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "해당 공모전을 찾을 수 없음",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/recommendations": {
+      "get": {
+        "tags": [
+          "Recommendations"
+        ],
+        "summary": "맞춤 추천 목록 조회",
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scholarship",
+                "contest"
+              ]
+            },
+            "description": "추천 대상 종류"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 10,
+              "minimum": 1,
+              "maximum": 50
+            },
+            "description": "추천 개수"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
                       "type": "string",
-                      "format": "email",
-                      "example": "202113575@student.kangwon.ac.kr"
+                      "enum": [
+                        "scholarship",
+                        "contest"
+                      ]
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RecommendationItem"
+                      }
                     }
                   }
                 }
@@ -153,416 +560,143 @@
             }
           },
           "401": {
-            "description": "인증 토큰 없음 또는 만료"
+            "description": "인증 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/rest/v1/user_account": {
-      "post": {
-        "tags": ["User Accounts"],
-        "summary": "사용자 계정 매핑 레코드 추가",
-        "description": "Supabase Auth 회원가입 직후 `public.user_account` 테이블에 학번 레코드를 생성합니다. 비밀번호는 Auth가 관리하므로 `password_hash`에는 더미 값을 삽입합니다. (Signup.jsx 참고)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "알림 목록 조회",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "is_read",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "읽음 여부 필터 (생략 시 전체)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "조회 성공",
+            "content": {
+              "application/json": {
+                "schema": {
                   "type": "object",
-                  "required": ["student_id", "password_hash"],
                   "properties": {
-                    "student_id": {
-                      "type": "string",
-                      "description": "9자리 학번",
-                      "example": "202113575"
+                    "total": {
+                      "type": "integer"
                     },
-                    "password_hash": {
-                      "type": "string",
-                      "default": "[SUPABASE_AUTH_MANAGED]",
-                      "description": "비밀번호 더미 해시값 (Supabase Auth가 실제 비밀번호 관리)"
+                    "unread_count": {
+                      "type": "integer"
+                    },
+                    "page": {
+                      "type": "integer"
+                    },
+                    "size": {
+                      "type": "integer"
+                    },
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Notification"
+                      }
                     }
                   }
                 }
-              },
-              "example": [
-                {
-                  "student_id": "202113575",
-                  "password_hash": "[SUPABASE_AUTH_MANAGED]"
-                }
-              ]
+              }
             }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "생성 성공"
           },
-          "409": {
-            "description": "이미 존재하는 학번 (unique constraint 위반, 코드에서 `23505` 에러코드로 무시 처리)"
+          "401": {
+            "description": "인증 필요",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/rest/v1/user_profile": {
-      "get": {
-        "tags": ["User Profiles"],
-        "summary": "사용자 프로필 단건 조회",
-        "description": "학번 조건으로 단일 프로필 레코드를 가져옵니다. MyPage.jsx에서 `.select('*').eq('student_id', sid).single()` 형태로 호출됩니다.",
+    "/api/notifications/{notification_id}/read": {
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "알림 읽음 처리",
         "parameters": [
           {
-            "name": "student_id",
-            "in": "query",
+            "name": "notification_id",
+            "in": "path",
             "required": true,
-            "description": "조회할 학생의 학번 (PostgREST 필터 형식, 예: `eq.202113575`)",
             "schema": {
-              "type": "string",
-              "example": "eq.202113575"
+              "type": "integer"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "프로필 조회 성공",
+            "description": "읽음 처리 성공",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/UserProfile"
+                  "$ref": "#/components/schemas/Notification"
                 }
               }
             }
           },
           "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      },
-      "post": {
-        "tags": ["User Profiles"],
-        "summary": "사용자 프로필 저장 (Upsert)",
-        "description": "사용자의 프로필 정보를 등록하거나 갱신(Upsert)합니다. MyPage.jsx에서 `supabase.from('user_profile').upsert({...})` 형태로 호출됩니다.",
-        "parameters": [
-          {
-            "name": "Prefer",
-            "in": "header",
-            "required": false,
-            "description": "Upsert 처리를 위한 Supabase 헤더",
-            "schema": {
-              "type": "string",
-              "default": "resolution=merge-duplicates"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UserProfile"
-              },
-              "example": {
-                "student_id": "202113575",
-                "name": "홍길동",
-                "department": "소프트웨어학과",
-                "grade": "3학년",
-                "gpa_prev": 3.78,
-                "email": "hong@example.com",
-                "phone": "010-1234-5678",
-                "campus": "춘천",
-                "student_type": "재학생"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "저장 성공"
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      }
-    },
-    "/rest/v1/user_interest": {
-      "get": {
-        "tags": ["User Interests"],
-        "summary": "사용자 관심 분야 목록 조회",
-        "description": "특정 학생의 관심 분야 목록을 가져옵니다. MyPage.jsx에서 `.select('interest_name').eq('student_id', sid)` 형태로 호출됩니다.",
-        "parameters": [
-          {
-            "name": "student_id",
-            "in": "query",
-            "required": true,
-            "description": "학번 조건 (예: `eq.202113575`)",
-            "schema": {
-              "type": "string",
-              "example": "eq.202113575"
-            }
-          },
-          {
-            "name": "select",
-            "in": "query",
-            "required": false,
-            "description": "반환할 컬럼 지정 (예: `interest_name`)",
-            "schema": {
-              "type": "string",
-              "default": "interest_name"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "조회 성공",
+            "description": "인증 필요",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserInterest"
-                  }
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
           },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      },
-      "post": {
-        "tags": ["User Interests"],
-        "summary": "사용자 관심 분야 일괄 추가",
-        "description": "학생의 관심 분야 리스트를 등록합니다. 저장 전 DELETE로 기존 데이터를 모두 삭제한 뒤 insert합니다. (MyPage.jsx 참고)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/UserInterest"
-                }
-              },
-              "example": [
-                { "student_id": "202113575", "interest_name": "개발" },
-                { "student_id": "202113575", "interest_name": "AI" }
-              ]
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "등록 성공"
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      },
-      "delete": {
-        "tags": ["User Interests"],
-        "summary": "사용자 관심 분야 전체 삭제",
-        "description": "저장 시 덮어쓰기를 위해 특정 학생의 모든 관심 분야를 삭제합니다. POST 전에 항상 먼저 호출됩니다. (MyPage.jsx 참고)",
-        "parameters": [
-          {
-            "name": "student_id",
-            "in": "query",
-            "required": true,
-            "description": "대상 학번 조건 (예: `eq.202113575`)",
-            "schema": {
-              "type": "string",
-              "example": "eq.202113575"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "삭제 성공"
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      }
-    },
-    "/rest/v1/user_competition": {
-      "get": {
-        "tags": ["User Competitions"],
-        "summary": "사용자 대회 참여 이력 조회",
-        "description": "학생의 대회/공모전 경력을 참여일 최신순으로 가져옵니다. MyPage.jsx에서 `.select('*').eq('student_id', sid).order('participated_at', { ascending: false })` 형태로 호출됩니다.",
-        "parameters": [
-          {
-            "name": "student_id",
-            "in": "query",
-            "required": true,
-            "description": "학번 조건 (예: `eq.202113575`)",
-            "schema": {
-              "type": "string",
-              "example": "eq.202113575"
-            }
-          },
-          {
-            "name": "order",
-            "in": "query",
-            "required": false,
-            "description": "정렬 방식",
-            "schema": {
-              "type": "string",
-              "default": "participated_at.desc"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "조회 성공",
+          "404": {
+            "description": "알림을 찾을 수 없음",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/UserCompetitionResponse"
-                  }
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             }
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      },
-      "post": {
-        "tags": ["User Competitions"],
-        "summary": "사용자 대회 참여 이력 일괄 추가",
-        "description": "학생의 대회 참여 이력을 여러 건 한 번에 등록합니다. 저장 전 DELETE로 기존 이력을 모두 삭제한 뒤 insert합니다. `title`과 `date` 모두 있는 항목만 전송합니다. (MyPage.jsx 참고)",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/UserCompetitionRequest"
-                }
-              },
-              "example": [
-                {
-                  "student_id": "202113575",
-                  "competition_name": "교내 알고리즘 경진대회",
-                  "participated_at": "2025-11-08",
-                  "result": "장려상"
-                }
-              ]
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "등록 성공"
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      },
-      "delete": {
-        "tags": ["User Competitions"],
-        "summary": "사용자 대회 참여 이력 전체 삭제",
-        "description": "저장 시 덮어쓰기를 위해 특정 학생의 모든 대회 참여 이력을 삭제합니다. POST 전에 항상 먼저 호출됩니다. (MyPage.jsx 참고)",
-        "parameters": [
-          {
-            "name": "student_id",
-            "in": "query",
-            "required": true,
-            "description": "대상 학번 조건 (예: `eq.202113575`)",
-            "schema": {
-              "type": "string",
-              "example": "eq.202113575"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "삭제 성공"
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      }
-    },
-    "/rest/v1/scholarship": {
-      "get": {
-        "tags": ["Scholarships"],
-        "summary": "전체 장학금 공고 목록 조회 (관계 테이블 조인 포함)",
-        "description": "장학금 메인 테이블과 `customized_detail_1`, `customized_detail_2`, `notice_detail_1`, `notice_detail_2`, `notice_llm` 관계 테이블을 조인하여 조회합니다. `itemsApi.js`의 `fetchItems()` 참고.",
-        "parameters": [
-          {
-            "name": "select",
-            "in": "query",
-            "required": true,
-            "description": "PostgREST 조인 쿼리 (itemsApi.js의 실제 쿼리 참고)",
-            "schema": {
-              "type": "string",
-              "example": "scholarship_id,source_type,title,detail_url,status,customized_detail_1(detail_url,title,scholarship_type,benefit_type,summary),customized_detail_2(title,summary,campus_text,...),notice_detail_1(detail_url,is_notice,campus_text,title,author,registered_at,view_count),notice_detail_2(title,campus_text,author,contact_phone,raw_text,attachment_file_url,attachment_file_type,image_file_url),notice_llm(notice_title,summary,amount_text,department_text,grade_text,grade_min,grade_max,gpa_min,application_start_date,application_close_date)"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "조회 성공",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Scholarship"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
-          }
-        }
-      }
-    },
-    "/rest/v1/contest": {
-      "get": {
-        "tags": ["Contests"],
-        "summary": "전체 공모전/대회 목록 조회 (관계 테이블 조인 포함)",
-        "description": "공모전 메인 테이블과 `contest_detail_1`, `contest_detail_2` 관계 테이블을 조인하여 조회합니다. `itemsApi.js`의 `fetchItems()` 참고.",
-        "parameters": [
-          {
-            "name": "select",
-            "in": "query",
-            "required": true,
-            "description": "PostgREST 조인 쿼리 (itemsApi.js의 실제 쿼리 참고)",
-            "schema": {
-              "type": "string",
-              "example": "contest_id,title,detail_url,status,contest_detail_1(detail_url,title,host,target_text,reception_start,reception_end,review_start,review_end,announcement_date,d_day),contest_detail_2(host_organization,main_field,target_text,reception_period_text,review_period_text,contest_region,award_text,homepage_url,application_method,application_url,participation_fee,detail_text)"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "조회 성공",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/Contest"
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "인증 토큰 없음 또는 만료"
           }
         }
       }
@@ -570,48 +704,87 @@
   },
   "components": {
     "securitySchemes": {
-      "apiKeyHeader": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "apikey",
-        "description": "Supabase 익명 키(`VITE_SUPABASE_KEY`) — 모든 요청에 필수"
-      },
       "bearerAuth": {
         "type": "http",
         "scheme": "bearer",
-        "bearerFormat": "JWT",
-        "description": "로그인 후 발급된 사용자 JWT 액세스 토큰 — 인증이 필요한 엔드포인트에 필수"
+        "bearerFormat": "JWT"
       }
     },
     "schemas": {
-      "AuthSignUpRequest": {
+      "SignupRequest": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": [
+          "email",
+          "password",
+          "name",
+          "student_id",
+          "college",
+          "department",
+          "grade"
+        ],
         "properties": {
           "email": {
             "type": "string",
             "format": "email",
-            "description": "학번을 이메일로 변환한 값 (`{9자리학번}@student.kangwon.ac.kr`)"
+            "example": "student@kangwon.ac.kr"
           },
           "password": {
             "type": "string",
-            "minLength": 6,
-            "description": "비밀번호 (최소 6자)"
+            "format": "password",
+            "minLength": 8,
+            "example": "Passw0rd!"
+          },
+          "name": {
+            "type": "string",
+            "example": "홍길동"
+          },
+          "student_id": {
+            "type": "string",
+            "example": "202012345"
+          },
+          "college": {
+            "type": "string",
+            "example": "IT대학",
+            "description": "단과대학"
+          },
+          "department": {
+            "type": "string",
+            "example": "컴퓨터공학과"
+          },
+          "grade": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6,
+            "example": 3
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "IT",
+              "디자인",
+              "창업"
+            ],
+            "description": "관심 분야 (다중 선택)"
           }
         }
       },
-      "AuthSignInRequest": {
+      "LoginRequest": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": [
+          "email",
+          "password"
+        ],
         "properties": {
           "email": {
             "type": "string",
-            "format": "email",
-            "description": "학번을 이메일로 변환한 값"
+            "format": "email"
           },
           "password": {
             "type": "string",
-            "description": "비밀번호"
+            "format": "password"
           }
         }
       },
@@ -620,362 +793,472 @@
         "properties": {
           "access_token": {
             "type": "string",
-            "description": "JWT 액세스 토큰"
+            "example": "eyJhbGciOi..."
           },
           "token_type": {
             "type": "string",
-            "default": "bearer"
-          },
-          "expires_in": {
-            "type": "integer",
-            "description": "토큰 유효 기한 (초)"
-          },
-          "refresh_token": {
-            "type": "string",
-            "description": "리프레시 토큰"
+            "example": "bearer"
           },
           "user": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid",
-                "description": "Supabase Auth 내부 UUID"
-              },
-              "email": {
-                "type": "string",
-                "format": "email",
-                "example": "202113575@student.kangwon.ac.kr"
-              }
-            }
+            "$ref": "#/components/schemas/User"
           }
         }
       },
-      "UserProfile": {
+      "User": {
         "type": "object",
-        "required": ["student_id", "name", "student_type"],
-        "description": "MyPage.jsx에서 실제 upsert/select하는 필드 기준으로 작성",
         "properties": {
-          "student_id": {
-            "type": "string",
-            "description": "9자리 학번 (PK)",
-            "example": "202113575"
-          },
-          "name": {
-            "type": "string",
-            "description": "학생 이름"
-          },
-          "department": {
-            "type": "string",
-            "description": "소속 학과",
-            "example": "소프트웨어학과"
-          },
-          "grade": {
-            "type": "string",
-            "description": "학년 (문자열 형식으로 저장)",
-            "enum": ["1학년", "2학년", "3학년", "4학년", "5학년", "전학년"],
-            "example": "3학년"
-          },
-          "gpa_prev": {
-            "type": "number",
-            "format": "float",
-            "minimum": 0,
-            "maximum": 4.5,
-            "description": "직전 학기 평점 (4.5 만점)",
-            "example": 3.78
+          "id": {
+            "type": "integer",
+            "example": 1
           },
           "email": {
             "type": "string",
-            "format": "email",
-            "description": "연락처용 이메일"
+            "format": "email"
           },
-          "phone": {
+          "name": {
             "type": "string",
-            "description": "전화번호",
-            "example": "010-1234-5678"
+            "example": "홍길동"
           },
-          "campus": {
-            "type": "string",
-            "description": "캠퍼스",
-            "enum": ["춘천", "삼척"],
-            "default": "춘천"
-          },
-          "student_type": {
-            "type": "string",
-            "description": "학생 구분",
-            "enum": ["신입생", "재학생"],
-            "default": "재학생"
-          }
-        }
-      },
-      "UserInterest": {
-        "type": "object",
-        "required": ["student_id", "interest_name"],
-        "description": "user_interest 테이블 스키마 기준 (SQL: interest_name CHECK constraint 반영)",
-        "properties": {
           "student_id": {
             "type": "string",
-            "description": "9자리 학번",
-            "example": "202113575"
+            "example": "202012345"
           },
-          "interest_name": {
+          "college": {
             "type": "string",
-            "description": "관심 키워드 (DB CHECK 제약 기준)",
-            "enum": ["장학", "대회", "개발", "데이터", "AI", "창업", "어학", "근로", "학업"]
-          }
-        }
-      },
-      "UserCompetitionRequest": {
-        "type": "object",
-        "required": ["student_id", "competition_name", "participated_at"],
-        "description": "대회 참여 이력 등록 시 전송하는 필드 (MyPage.jsx insert 참고)",
-        "properties": {
-          "student_id": {
-            "type": "string",
-            "description": "9자리 학번",
-            "example": "202113575"
+            "example": "IT대학"
           },
-          "competition_name": {
+          "department": {
             "type": "string",
-            "description": "대회/공모전 명칭",
-            "example": "교내 알고리즘 경진대회"
+            "example": "컴퓨터공학과"
           },
-          "participated_at": {
-            "type": "string",
-            "format": "date",
-            "description": "참여/개최 일자 (YYYY-MM-DD)",
-            "example": "2025-11-08"
-          },
-          "result": {
-            "type": "string",
-            "description": "수상 결과 또는 상태 (선택)",
-            "example": "장려상"
-          }
-        }
-      },
-      "UserCompetitionResponse": {
-        "type": "object",
-        "description": "대회 참여 이력 조회 응답 (DB PK인 competition_id 포함, MyPage.jsx에서 h.competition_id로 참조)",
-        "properties": {
-          "competition_id": {
+          "grade": {
             "type": "integer",
-            "description": "대회 이력 고유 ID (BIGSERIAL PK, DB 자동 생성)",
-            "example": 1
+            "example": 3
           },
-          "student_id": {
-            "type": "string",
-            "description": "9자리 학번"
-          },
-          "competition_name": {
-            "type": "string",
-            "description": "대회/공모전 명칭"
-          },
-          "participated_at": {
-            "type": "string",
-            "format": "date",
-            "description": "참여/개최 일자"
-          },
-          "result": {
-            "type": "string",
-            "description": "수상 결과 또는 상태"
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "IT",
+              "창업"
+            ]
           },
           "created_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "UserUpdateRequest": {
+        "type": "object",
+        "description": "수정할 필드만 포함 (부분 업데이트 가능)",
+        "properties": {
+          "name": {
+            "type": "string"
           },
-          "updated_at": {
+          "college": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 6
+          },
+          "interests": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "current_password": {
+            "type": "string",
+            "format": "password",
+            "description": "비밀번호 변경 시 필요"
+          },
+          "new_password": {
+            "type": "string",
+            "format": "password",
+            "minLength": 8,
+            "description": "비밀번호 변경 시 사용"
+          }
+        }
+      },
+      "ScholarshipSummary": {
+        "type": "object",
+        "description": "장학금 목록 카드용 요약 정보",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 101
+          },
+          "title": {
+            "type": "string",
+            "example": "2026학년도 1학기 성적우수 장학금"
+          },
+          "organization": {
+            "type": "string",
+            "example": "강원대학교 학생처"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "성적우수",
+              "생활지원",
+              "근로",
+              "외부",
+              "기타"
+            ]
+          },
+          "amount": {
+            "type": "integer",
+            "example": 1500000,
+            "description": "지원 금액(원)"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-30"
+          },
+          "d_day": {
+            "type": "integer",
+            "example": 35,
+            "description": "마감까지 남은 일수"
+          },
+          "target_grades": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "example": [
+              2,
+              3,
+              4
+            ]
+          },
+          "target_departments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "컴퓨터공학과",
+              "전자공학과"
+            ],
+            "description": "비어있으면 전체 학과 대상"
+          }
+        }
+      },
+      "ScholarshipDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ScholarshipSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "example": "직전 학기 성적 3.5 이상..."
+              },
+              "eligibility": {
+                "type": "string",
+                "example": "재학생 중 직전 학기 12학점 이상 이수자"
+              },
+              "recruit_count": {
+                "type": "integer",
+                "example": 30,
+                "description": "모집 인원"
+              },
+              "application_start": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-05-15"
+              },
+              "application_end": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-06-30"
+              },
+              "required_documents": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "example": [
+                  "신청서",
+                  "성적증명서",
+                  "통장사본"
+                ]
+              },
+              "application_method": {
+                "type": "string",
+                "example": "강원대 학생포털 → 장학 → 신청"
+              },
+              "application_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "contact": {
+                "type": "string",
+                "example": "학생지원과 033-250-XXXX"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "ContestSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 201
+          },
+          "title": {
+            "type": "string",
+            "example": "2026 강원 청년 창업 아이디어 공모전"
+          },
+          "host": {
+            "type": "string",
+            "example": "강원도청"
+          },
+          "host_type": {
+            "type": "string",
+            "enum": [
+              "교내",
+              "교외",
+              "기업",
+              "정부",
+              "기타"
+            ]
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "IT",
+              "디자인",
+              "마케팅",
+              "학술",
+              "창업",
+              "예술",
+              "기타"
+            ]
+          },
+          "participation_type": {
+            "type": "string",
+            "enum": [
+              "개인",
+              "팀",
+              "개인/팀"
+            ]
+          },
+          "prize": {
+            "type": "integer",
+            "example": 5000000,
+            "description": "최고 상금(원)"
+          },
+          "deadline": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-07-15"
+          },
+          "d_day": {
+            "type": "integer",
+            "example": 50
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "창업",
+              "청년",
+              "강원"
+            ]
+          }
+        }
+      },
+      "ContestDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ContestSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "eligibility": {
+                "type": "string",
+                "example": "강원도 소재 대학 재학생"
+              },
+              "prize_details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "rank": {
+                      "type": "string",
+                      "example": "대상"
+                    },
+                    "amount": {
+                      "type": "integer",
+                      "example": 5000000
+                    },
+                    "count": {
+                      "type": "integer",
+                      "example": 1
+                    }
+                  }
+                }
+              },
+              "application_start": {
+                "type": "string",
+                "format": "date"
+              },
+              "application_end": {
+                "type": "string",
+                "format": "date"
+              },
+              "schedule": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "type": "string",
+                      "example": "1차 심사"
+                    },
+                    "date": {
+                      "type": "string",
+                      "format": "date"
+                    }
+                  }
+                }
+              },
+              "submission_method": {
+                "type": "string"
+              },
+              "required_documents": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "official_url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "contact": {
+                "type": "string"
+              },
+              "created_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "RecommendationItem": {
+        "type": "object",
+        "description": "추천 항목 (장학금 또는 공모전 요약 + 추천 메타데이터)",
+        "properties": {
+          "item_type": {
+            "type": "string",
+            "enum": [
+              "scholarship",
+              "contest"
+            ]
+          },
+          "scholarship": {
+            "$ref": "#/components/schemas/ScholarshipSummary"
+          },
+          "contest": {
+            "$ref": "#/components/schemas/ContestSummary"
+          },
+          "match_score": {
+            "type": "number",
+            "format": "float",
+            "example": 0.87,
+            "description": "매칭 점수 (0~1)"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "학과 일치",
+              "관심분야 일치",
+              "학년 조건 충족"
+            ]
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 301
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "deadline",
+              "new_recommendation",
+              "system"
+            ],
+            "description": "마감임박 / 신규추천 / 시스템 공지"
+          },
+          "title": {
+            "type": "string",
+            "example": "마감 3일 전 - 성적우수 장학금"
+          },
+          "message": {
+            "type": "string",
+            "example": "신청 마감이 3일 남았습니다."
+          },
+          "link_url": {
+            "type": "string",
+            "example": "/scholarships/101",
+            "description": "클릭 시 이동할 프론트 경로"
+          },
+          "is_read": {
+            "type": "boolean",
+            "example": false
+          },
+          "created_at": {
             "type": "string",
             "format": "date-time"
           }
         }
       },
-      "Scholarship": {
+      "ErrorResponse": {
         "type": "object",
-        "description": "itemsApi.js의 normalizeScholarship() 함수에서 매핑하는 필드 기준",
         "properties": {
-          "scholarship_id": {
-            "type": "integer",
-            "description": "장학 공고 일련번호"
-          },
-          "source_type": {
+          "detail": {
             "type": "string",
-            "enum": ["customized", "notice"],
-            "description": "장학 공고 종류 (맞춤형 장학 또는 일반 장학 공지)"
-          },
-          "title": {
-            "type": "string",
-            "description": "공고 제목"
-          },
-          "detail_url": {
-            "type": "string",
-            "description": "상세 보기 외부 링크 URL"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["open", "closed", "upcoming"]
-          },
-          "customized_detail_1": {
-            "type": "array",
-            "description": "맞춤형 장학 리스트용 요약 정보",
-            "items": {
-              "type": "object",
-              "properties": {
-                "detail_url": { "type": "string" },
-                "title": { "type": "string" },
-                "scholarship_type": { "type": "string" },
-                "benefit_type": { "type": "string" },
-                "summary": { "type": "string" }
-              }
-            }
-          },
-          "customized_detail_2": {
-            "type": "array",
-            "description": "맞춤형 장학 상세 조건 정보",
-            "items": {
-              "type": "object",
-              "properties": {
-                "title": { "type": "string" },
-                "summary": { "type": "string" },
-                "campus_text": { "type": "string" },
-                "scholarship_type": { "type": "string" },
-                "benefit_type": { "type": "string" },
-                "nationality_type": { "type": "string" },
-                "student_type": { "type": "string" },
-                "grade_min": { "type": "integer" },
-                "grade_max": { "type": "integer" },
-                "income_level_min": { "type": "integer" },
-                "income_level_max": { "type": "integer" },
-                "enrollment_type": { "type": "string" },
-                "department_humanities": { "type": "boolean" },
-                "department_science": { "type": "boolean" },
-                "department_engineering": { "type": "boolean" },
-                "department_arts": { "type": "boolean" },
-                "credit_prev_value": { "type": "integer" },
-                "gpa_prev_semester_value": { "type": "number" },
-                "gpa_total_value": { "type": "number" },
-                "amount_text": { "type": "string" },
-                "selection_period_text": { "type": "string" },
-                "requires_recommendation": { "type": "boolean" },
-                "requires_recommendation_text": { "type": "string" },
-                "selection_method_text": { "type": "string" },
-                "eligibility_text": { "type": "string" },
-                "application_method_text": { "type": "string" },
-                "related_document_url": { "type": "string" },
-                "note_text": { "type": "string" }
-              }
-            }
-          },
-          "notice_detail_1": {
-            "type": "array",
-            "description": "공지 장학 리스트용 요약 정보",
-            "items": {
-              "type": "object",
-              "properties": {
-                "detail_url": { "type": "string" },
-                "is_notice": { "type": "boolean" },
-                "campus_text": { "type": "string" },
-                "title": { "type": "string" },
-                "author": { "type": "string" },
-                "registered_at": { "type": "string" },
-                "view_count": { "type": "integer" }
-              }
-            }
-          },
-          "notice_detail_2": {
-            "type": "array",
-            "description": "공지 장학 본문 상세 정보",
-            "items": {
-              "type": "object",
-              "properties": {
-                "title": { "type": "string" },
-                "campus_text": { "type": "string" },
-                "author": { "type": "string" },
-                "contact_phone": { "type": "string" },
-                "raw_text": { "type": "string" },
-                "attachment_file_url": { "type": "string" },
-                "attachment_file_type": { "type": "string" },
-                "image_file_url": { "type": "string" }
-              }
-            }
-          },
-          "notice_llm": {
-            "type": "array",
-            "description": "LLM이 공지 본문을 파싱하여 정형화한 데이터",
-            "items": {
-              "type": "object",
-              "properties": {
-                "notice_title": { "type": "string" },
-                "summary": { "type": "string" },
-                "amount_text": { "type": "string" },
-                "department_text": { "type": "string" },
-                "grade_text": { "type": "string" },
-                "grade_min": { "type": "integer" },
-                "grade_max": { "type": "integer" },
-                "gpa_min": { "type": "number" },
-                "application_start_date": { "type": "string", "format": "date" },
-                "application_close_date": { "type": "string", "format": "date" }
-              }
-            }
-          }
-        }
-      },
-      "Contest": {
-        "type": "object",
-        "description": "itemsApi.js의 normalizeContest() 함수에서 매핑하는 필드 기준",
-        "properties": {
-          "contest_id": {
-            "type": "integer",
-            "description": "공모전 고유 일련번호"
-          },
-          "title": {
-            "type": "string"
-          },
-          "detail_url": {
-            "type": "string"
-          },
-          "status": {
-            "type": "string",
-            "enum": ["open", "closed", "upcoming"]
-          },
-          "contest_detail_1": {
-            "type": "array",
-            "description": "공모전 리스트용 요약 정보 (일정, D-Day 등)",
-            "items": {
-              "type": "object",
-              "properties": {
-                "detail_url": { "type": "string" },
-                "title": { "type": "string" },
-                "host": { "type": "string" },
-                "target_text": { "type": "string" },
-                "reception_start": { "type": "string", "format": "date" },
-                "reception_end": { "type": "string", "format": "date" },
-                "review_start": { "type": "string", "format": "date" },
-                "review_end": { "type": "string", "format": "date" },
-                "announcement_date": { "type": "string", "format": "date" },
-                "d_day": { "type": "integer", "description": "마감까지 남은 일수 (D-Day)" }
-              }
-            }
-          },
-          "contest_detail_2": {
-            "type": "array",
-            "description": "공모전 본문 상세 정보",
-            "items": {
-              "type": "object",
-              "properties": {
-                "host_organization": { "type": "string" },
-                "main_field": { "type": "string", "description": "분야 (예: IT/과학기술)" },
-                "target_text": { "type": "string" },
-                "reception_period_text": { "type": "string" },
-                "review_period_text": { "type": "string" },
-                "contest_region": { "type": "string" },
-                "award_text": { "type": "string" },
-                "homepage_url": { "type": "string" },
-                "application_method": { "type": "string" },
-                "application_url": { "type": "string" },
-                "participation_fee": { "type": "string" },
-                "detail_text": { "type": "string", "description": "공모전 상세 설명 본문" }
-              }
-            }
+            "example": "이메일이 이미 존재합니다."
           }
         }
       }

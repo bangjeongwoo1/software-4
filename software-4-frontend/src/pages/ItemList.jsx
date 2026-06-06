@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { fetchItems } from '../data/itemsApi.js'
 import ItemCard from '../components/ItemCard.jsx'
+import { parseRobustDate } from '../lib/dateUtils.js'
 
 export default function ItemList() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -27,6 +28,8 @@ export default function ItemList() {
   }, [items])
 
 
+  const [onlyActive, setOnlyActive] = useState(true)
+
   const onChangeType = (next) => {
     setType(next)
     if (next === 'all') searchParams.delete('type')
@@ -35,13 +38,21 @@ export default function ItemList() {
   }
 
   const filtered = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
     return items.filter((it) => {
       if (type !== 'all' && it.type !== type) return false
       if (source !== 'all' && it.source !== source) return false
       if (keyword && !it.title.toLowerCase().includes(keyword.toLowerCase())) return false
+      
+      if (onlyActive && it.deadline) {
+        const deadlineDate = parseRobustDate(it.deadline)
+        if (deadlineDate && deadlineDate < today) return false
+      }
       return true
     })
-  }, [items, type, source, keyword])
+  }, [items, type, source, keyword, onlyActive])
 
   if (loading) {
     return (
@@ -92,10 +103,11 @@ export default function ItemList() {
       </div>
 
       {/* 출처 필터 + 검색 */}
-      <div className="filter-bar">
+      <div className="filter-bar" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px 12px' }}>
         <button
           className={'filter-chip ' + (source === 'all' ? 'active' : '')}
           onClick={() => setSource('all')}
+          style={{ margin: 0 }}
         >
           전체 출처
         </button>
@@ -104,10 +116,33 @@ export default function ItemList() {
             key={s}
             className={'filter-chip ' + (source === s ? 'active' : '')}
             onClick={() => setSource(s)}
+            style={{ margin: 0 }}
           >
             {s}
           </button>
         ))}
+
+        <label 
+          className="text-secondary" 
+          style={{ 
+            fontSize: 13, 
+            cursor: 'pointer', 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: 6,
+            marginLeft: 12,
+            userSelect: 'none'
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={onlyActive}
+            onChange={(e) => setOnlyActive(e.target.checked)}
+            style={{ cursor: 'pointer', width: 15, height: 15 }}
+          />
+          진행 중인 공고만 보기
+        </label>
+
         <input
           type="text"
           className="form-control"

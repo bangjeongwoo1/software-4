@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { fetchItemById } from '../data/itemsApi.js'
+import { isBookmarked, toggleBookmark } from '../lib/bookmark.js'
 
 export default function ItemDetail() {
   const { id } = useParams()
@@ -8,12 +9,26 @@ export default function ItemDetail() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const [starred, setStarred] = useState(false)
+
   useEffect(() => {
     fetchItemById(id)
-      .then(setItem)
+      .then((data) => {
+        setItem(data)
+        if (data) {
+          setStarred(isBookmarked(data.id))
+        }
+      })
       .catch(setError)
       .finally(() => setLoading(false))
   }, [id])
+
+  const handleStarToggle = () => {
+    if (item) {
+      toggleBookmark(item.id)
+      setStarred(!starred)
+    }
+  }
 
   if (loading) {
     return (
@@ -84,14 +99,14 @@ export default function ItemDetail() {
             {item.type === 'scholarship' ? (
               <ul>
                 <li>지원 금액 / 혜택: <strong>{item.amount}</strong></li>
-                <li>대상 캠퍼스: {item.department}</li>
+                <li>대상 캠퍼스: {item.campus}</li>
                 <li>대상 학년: {item.targetGrade.length ? `${item.targetGrade.join(', ')}학년` : '-'}</li>
                 {item.minGpa > 0 && <li>최소 평점: {item.minGpa}</li>}
                 <li>마감일: <strong>{item.deadline}</strong></li>
               </ul>
             ) : (
               <ul>
-                <li>참가 대상: {item.department || '-'}</li>
+                <li>참가 대상: {item.target || '-'}</li>
                 <li>시상/혜택: {item.amount || '-'}</li>
                 <li>분야: {item.mainField || '-'}</li>
                 <li>접수 마감: {item.deadline || '-'}</li>
@@ -135,8 +150,11 @@ export default function ItemDetail() {
           >
             {isContest ? '대회 페이지로 이동 ↗' : '장학 페이지로 이동 ↗'}
           </a>
-          <button className="btn btn-secondary btn-block mt-2">
-            관심 공고로 저장
+          <button 
+            className={`btn btn-block mt-2 ${starred ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={handleStarToggle}
+          >
+            {starred ? '★ 관심 공고 해제' : '☆ 관심 공고로 저장'}
           </button>
         </aside>
       </div>

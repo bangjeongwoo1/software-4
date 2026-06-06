@@ -28,6 +28,7 @@ CREATE TABLE public.user_account (
 CREATE TABLE public.user_profile (
     student_id TEXT PRIMARY KEY REFERENCES public.user_account(student_id) ON DELETE CASCADE,
     name TEXT,
+    college TEXT,
     department TEXT,
     phone TEXT,
     email TEXT,

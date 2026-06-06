@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase.js'
+import { api } from '../lib/api.js'
 
 export default function Layout() {
   const navigate = useNavigate()
@@ -8,34 +8,25 @@ export default function Layout() {
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
+      try {
+        const user = await api.getMe()
+        if (user) {
+          setUserProfile({
+            name: user.name || '이름없음',
+            department: user.department || '소속없음',
+            grade: user.grade ? `${user.grade}학년` : '?'
+          })
+        }
+      } catch (err) {
+        console.error(err)
         navigate('/login')
-        return
-      }
-      
-      const studentId = user.email.split('@')[0]
-      const { data } = await supabase
-        .from('user_profile')
-        .select('name, department, grade')
-        .eq('student_id', studentId)
-        .single()
-        
-      if (data) {
-        setUserProfile({
-          name: data.name || '이름없음',
-          department: data.department || '소속없음',
-          grade: data.grade || '?'
-        })
-      } else {
-        setUserProfile({ name: '이름없음', department: '소속없음', grade: '?' })
       }
     }
     fetchProfile()
   }, [navigate])
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
+  const handleLogout = () => {
+    api.logout()
     navigate('/login')
   }
 
