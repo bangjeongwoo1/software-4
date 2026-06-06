@@ -34,9 +34,6 @@ from contest.contest_parser import (
 )
 
 
-# ---------------------------------------------------------------------------
-# clean_text  (3 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -49,9 +46,6 @@ def test_clean_text(given, expected):
     assert clean_text(given) == expected
 
 
-# ---------------------------------------------------------------------------
-# clean_multiline_text  (2 cases)
-# ---------------------------------------------------------------------------
 def test_clean_multiline_text_strips_blank_lines():
     assert clean_multiline_text("a\n\nb\nc") == "a\nb\nc"
 
@@ -60,9 +54,6 @@ def test_clean_multiline_text_empty():
     assert clean_multiline_text(None) == ""
 
 
-# ---------------------------------------------------------------------------
-# format_date  (2 cases)
-# ---------------------------------------------------------------------------
 def test_format_date_none():
     assert format_date(None) is None
 
@@ -71,9 +62,6 @@ def test_format_date_with_date():
     assert format_date(datetime.date(2024, 5, 20)) == "2024-05-20"
 
 
-# ---------------------------------------------------------------------------
-# extract_str_no  (3 cases)
-# ---------------------------------------------------------------------------
 def test_extract_str_no_present():
     assert extract_str_no("/sub/view.php?int_gbn=1&str_no=12345") == "12345"
 
@@ -86,9 +74,6 @@ def test_extract_str_no_missing():
     assert extract_str_no("/sub/view.php?int_gbn=1") is None
 
 
-# ---------------------------------------------------------------------------
-# normalize_detail_url  (2 cases)
-# ---------------------------------------------------------------------------
 def test_normalize_detail_url_canonical_form():
     given = "/sub/view.php?int_gbn=1&str_no=42&extra=x"
     assert normalize_detail_url(given) == (
@@ -101,9 +86,6 @@ def test_normalize_detail_url_no_str_no_returns_absolute():
     assert result == "https://example.com/page"
 
 
-# ---------------------------------------------------------------------------
-# parse_month_day  (3 cases)
-# ---------------------------------------------------------------------------
 def test_parse_month_day_valid():
     assert parse_month_day("6.5", 2026) == datetime.date(2026, 6, 5)
 
@@ -116,21 +98,14 @@ def test_parse_month_day_no_match():
     assert parse_month_day("abc", 2026) is None
 
 
-# ---------------------------------------------------------------------------
-# parse_date_range  (2 cases)
-# ---------------------------------------------------------------------------
 def test_parse_date_range_same_year():
     assert parse_date_range("6.1 ~ 6.30", 2026) == ("2026-06-01", "2026-06-30")
 
 
 def test_parse_date_range_crosses_year():
-    # 종료 월일이 시작보다 빠르면 다음해로 처리
     assert parse_date_range("12.20 ~ 1.10", 2026) == ("2026-12-20", "2027-01-10")
 
 
-# ---------------------------------------------------------------------------
-# parse_labeled_date_range  (2 cases)
-# ---------------------------------------------------------------------------
 def test_parse_labeled_date_range_matches_label():
     text = "접수: 6.1 ~ 6.30 심사: 7.1 ~ 7.20"
     assert parse_labeled_date_range(text, "접수", 2026) == ("2026-06-01", "2026-06-30")
@@ -140,9 +115,6 @@ def test_parse_labeled_date_range_no_label():
     assert parse_labeled_date_range("발표: 7.15", "접수", 2026) == (None, None)
 
 
-# ---------------------------------------------------------------------------
-# parse_labeled_single_date  (2 cases)
-# ---------------------------------------------------------------------------
 def test_parse_labeled_single_date_matches():
     assert parse_labeled_single_date("발표: 7.15", "발표", 2026) == "2026-07-15"
 
@@ -151,9 +123,6 @@ def test_parse_labeled_single_date_missing():
     assert parse_labeled_single_date("접수: 6.1 ~ 6.30", "발표", 2026) is None
 
 
-# ---------------------------------------------------------------------------
-# calc_d_day  (3 cases) — frozen today = 2026-06-05
-# ---------------------------------------------------------------------------
 def test_calc_d_day_future(frozen_today):
     assert calc_d_day("2026-06-10") == 5
 
@@ -167,9 +136,6 @@ def test_calc_d_day_invalid(frozen_today):
     assert calc_d_day("bad-date") is None
 
 
-# ---------------------------------------------------------------------------
-# extract_d_day  (3 cases)
-# ---------------------------------------------------------------------------
 def test_extract_d_day_basic():
     assert extract_d_day("접수중 D-7") == 7
 
@@ -183,9 +149,6 @@ def test_extract_d_day_d_day_keyword():
     assert extract_d_day("아무것도 없음") is None
 
 
-# ---------------------------------------------------------------------------
-# extract_status / extract_status_text  (2 cases)
-# ---------------------------------------------------------------------------
 def test_extract_status_known_keywords():
     assert extract_status("D-3 접수중") == "open"
     assert extract_status("마감임박") == "closing"
@@ -197,9 +160,6 @@ def test_extract_status_text_unknown_returns_none():
     assert extract_status("아무거나") is None
 
 
-# ---------------------------------------------------------------------------
-# extract_labeled_value  (2 cases)
-# ---------------------------------------------------------------------------
 def test_extract_labeled_value_between_labels():
     text = "주최: 회사A 대상: 대학생 접수: 6.1 ~ 6.30"
     assert extract_labeled_value(text, "주최") == "회사A"
@@ -210,9 +170,6 @@ def test_extract_labeled_value_missing():
     assert extract_labeled_value("대상: 학생", "주최") is None
 
 
-# ---------------------------------------------------------------------------
-# extract_title_from_text  (2 cases)
-# ---------------------------------------------------------------------------
 def test_extract_title_from_text_with_label_marker():
     assert extract_title_from_text("멋진 콘테스트 주최: 회사") == "멋진 콘테스트"
 
@@ -221,22 +178,15 @@ def test_extract_title_from_text_without_marker():
     assert extract_title_from_text("그냥 제목") == "그냥 제목"
 
 
-# ---------------------------------------------------------------------------
-# clean_label_noise  (no separate case bucket; covered indirectly above)
-# ---------------------------------------------------------------------------
 def test_clean_label_noise_strips_label_and_punctuation():
     assert clean_label_noise("주최: 회사A.", "주최") == "회사A"
 
 
 def test_clean_label_noise_label_with_separator_only_returns_none():
-    # 라벨 + 구분자만 있는 경우 빈 문자열이 되어 None 으로 정규화된다
     assert clean_label_noise("주최:", "주최") is None
     assert clean_label_noise("주최. ", "주최") is None
 
 
-# ---------------------------------------------------------------------------
-# extract_urls_from_text  (2 cases)
-# ---------------------------------------------------------------------------
 def test_extract_urls_from_text_finds_multiple():
     text = "참고 https://a.example.com 과 http://b.example.com/path."
     assert extract_urls_from_text(text) == [
@@ -249,9 +199,6 @@ def test_extract_urls_from_text_empty():
     assert extract_urls_from_text("URL 없음") == []
 
 
-# ---------------------------------------------------------------------------
-# find_same_domain_url  (2 cases)
-# ---------------------------------------------------------------------------
 def test_find_same_domain_url_match():
     candidates = ["https://other.com/a", "https://example.com/b"]
     assert (
@@ -264,9 +211,6 @@ def test_find_same_domain_url_no_match():
     assert find_same_domain_url("https://x.com", ["https://y.com"]) is None
 
 
-# ---------------------------------------------------------------------------
-# should_replace_application_url  (3 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -283,9 +227,6 @@ def test_should_replace_application_url_false_for_real_link():
     assert should_replace_application_url("https://example.com/apply") is False
 
 
-# ---------------------------------------------------------------------------
-# unique_strings  (2 cases)
-# ---------------------------------------------------------------------------
 def test_unique_strings_preserves_order():
     assert unique_strings(["a", "b", "a", "c", "b"]) == ["a", "b", "c"]
 
@@ -294,9 +235,6 @@ def test_unique_strings_empty():
     assert unique_strings([]) == []
 
 
-# ---------------------------------------------------------------------------
-# unique_by_detail_url  (2 cases)
-# ---------------------------------------------------------------------------
 def test_unique_by_detail_url_dedups_and_drops_none():
     items = [
         {"detail_url": None, "title": "x"},

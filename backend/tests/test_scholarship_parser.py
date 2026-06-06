@@ -38,9 +38,6 @@ from scholarship.parser import (
 )
 
 
-# ---------------------------------------------------------------------------
-# clean_text  (3 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -57,9 +54,6 @@ def test_clean_text_removes_icon_noise():
     assert clean_text("chevron_forward 다음 keyboard_arrow_down") == "다음"
 
 
-# ---------------------------------------------------------------------------
-# normalize_campus_text  (5 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -79,14 +73,10 @@ def test_normalize_campus_text_single():
 
 
 def test_normalize_campus_text_multiple_preserves_order():
-    # 정의된 순서: 강릉, 원주, 춘천, 삼척, 도계
     assert normalize_campus_text("춘천, 삼척") == "춘천,삼척"
     assert normalize_campus_text("도계 / 삼척") == "삼척,도계"
 
 
-# ---------------------------------------------------------------------------
-# parse_grade_range  (5 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -101,9 +91,6 @@ def test_parse_grade_range(given, expected):
     assert parse_grade_range(given) == expected
 
 
-# ---------------------------------------------------------------------------
-# parse_income_range  (3 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -116,9 +103,6 @@ def test_parse_income_range_simple(given, expected):
     assert parse_income_range(given) == expected
 
 
-# ---------------------------------------------------------------------------
-# parse_recommendation  (4 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -132,9 +116,6 @@ def test_parse_recommendation(given, expected):
     assert parse_recommendation(given) == expected
 
 
-# ---------------------------------------------------------------------------
-# parse_number  (3 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -147,9 +128,6 @@ def test_parse_number(given, expected):
     assert parse_number(given) == expected
 
 
-# ---------------------------------------------------------------------------
-# parse_int  (3 cases)
-# ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "given, expected",
     [
@@ -162,9 +140,6 @@ def test_parse_int(given, expected):
     assert parse_int(given) == expected
 
 
-# ---------------------------------------------------------------------------
-# build_status  (4 cases) — uses frozen_today=2026-06-05
-# ---------------------------------------------------------------------------
 def test_build_status_open_when_no_dates(frozen_today):
     assert build_status(None, None) == "open"
 
@@ -181,9 +156,6 @@ def test_build_status_in_range_is_open(frozen_today):
     assert build_status("2020-01-01", "2030-12-31") == "open"
 
 
-# ---------------------------------------------------------------------------
-# extract_period  (4 cases)
-# ---------------------------------------------------------------------------
 def test_extract_period_full_range():
     assert extract_period("2024.01.01 ~ 2024.12.31") == ("2024-01-01", "2024-12-31")
 
@@ -201,9 +173,6 @@ def test_extract_period_returns_none_for_empty():
     assert extract_period("") == (None, None)
 
 
-# ---------------------------------------------------------------------------
-# parse_department_flags  (3 cases)
-# ---------------------------------------------------------------------------
 def test_parse_department_flags_none():
     assert parse_department_flags(None) == {
         "department_humanities": None,
@@ -231,9 +200,6 @@ def test_parse_department_flags_multiple():
     }
 
 
-# ---------------------------------------------------------------------------
-# normalize_detail_url  (2 cases)
-# ---------------------------------------------------------------------------
 def test_normalize_detail_url_keeps_only_janghakSn():
     given = "https://www.kangwon.ac.kr/ko/extn/90/janghak/view.do?janghakSn=999&extra=ignored"
     assert normalize_detail_url(given) == (
@@ -248,9 +214,6 @@ def test_normalize_detail_url_keeps_only_pstSn():
     )
 
 
-# ---------------------------------------------------------------------------
-# format_date  (2 cases)
-# ---------------------------------------------------------------------------
 def test_format_date_valid():
     assert format_date("2024", "5", "20") == "2024-05-20"
 
@@ -259,9 +222,6 @@ def test_format_date_invalid_month():
     assert format_date("2024", "13", "1") is None
 
 
-# ---------------------------------------------------------------------------
-# parse_iso_date  (3 cases)
-# ---------------------------------------------------------------------------
 def test_parse_iso_date_none():
     assert parse_iso_date(None) is None
 
@@ -274,9 +234,6 @@ def test_parse_iso_date_invalid():
     assert parse_iso_date("not-a-date") is None
 
 
-# ---------------------------------------------------------------------------
-# extract_phone  (3 cases)
-# ---------------------------------------------------------------------------
 def test_extract_phone_with_label():
     assert extract_phone("문의 010-1234-5678") == "010-1234-5678"
 
@@ -289,9 +246,6 @@ def test_extract_phone_none_when_missing():
     assert extract_phone("아무 번호도 없습니다") is None
 
 
-# ---------------------------------------------------------------------------
-# infer_attachment_ext  (3 cases)
-# ---------------------------------------------------------------------------
 def test_infer_attachment_ext_from_path():
     assert infer_attachment_ext("https://example.com/notice/file.pdf") == "pdf"
 
@@ -305,17 +259,11 @@ def test_infer_attachment_ext_from_link_text():
     assert infer_attachment_ext("https://example.com/down", "[양식.hwp]") == "hwp"
 
 
-# ---------------------------------------------------------------------------
-# normalize_asset_url  (1 case)
-# ---------------------------------------------------------------------------
 def test_normalize_asset_url_encodes_korean_query():
     encoded = normalize_asset_url("https://example.com/path?fn=한글.hwp")
     assert encoded == "https://example.com/path?fn=%ED%95%9C%EA%B8%80.hwp"
 
 
-# ---------------------------------------------------------------------------
-# unique  (2 cases)
-# ---------------------------------------------------------------------------
 def test_unique_preserves_order_and_dedups():
     assert unique(["a", "b", "a", "c", "b"]) == ["a", "b", "c"]
 
@@ -324,9 +272,6 @@ def test_unique_empty():
     assert unique([]) == []
 
 
-# ---------------------------------------------------------------------------
-# pick  (2 cases)
-# ---------------------------------------------------------------------------
 def test_pick_returns_first_present_label():
     fields = {"개요": "내용 A", "장학명": "이름"}
     assert pick(fields, "장학명", "개요") == "이름"
@@ -336,9 +281,6 @@ def test_pick_returns_none_when_missing():
     assert pick({"x": "y"}, "a", "b") is None
 
 
-# ---------------------------------------------------------------------------
-# first_value  (2 cases)
-# ---------------------------------------------------------------------------
 def test_first_value_empty():
     assert first_value([]) is None
 
@@ -347,14 +289,11 @@ def test_first_value_non_empty():
     assert first_value(["x", "y"]) == "x"
 
 
-# ---------------------------------------------------------------------------
-# attachment_types  (2 cases)
-# ---------------------------------------------------------------------------
 def test_attachment_types_filters_disallowed():
     urls = [
         "https://example.com/file.pdf",
         "https://example.com/doc.docx",
-        "https://example.com/img.png",  # 허용 안 됨
+        "https://example.com/img.png",
     ]
     assert attachment_types(urls) == ["PDF", "DOCX"]
 
@@ -363,9 +302,6 @@ def test_attachment_types_empty():
     assert attachment_types([]) == []
 
 
-# ---------------------------------------------------------------------------
-# find_campus  (2 cases)
-# ---------------------------------------------------------------------------
 def test_find_campus_picks_known_keyword():
     assert find_campus(["서울", "춘천 캠퍼스"]) == "춘천 캠퍼스"
 
@@ -374,9 +310,6 @@ def test_find_campus_none_when_no_keyword():
     assert find_campus(["서울", "부산"]) is None
 
 
-# ---------------------------------------------------------------------------
-# find_view_count  (2 cases)
-# ---------------------------------------------------------------------------
 def test_find_view_count_returns_first_numeric_from_end():
     assert find_view_count(["title", "춘천", "123"]) == 123
 
@@ -385,9 +318,6 @@ def test_find_view_count_none_when_no_digits():
     assert find_view_count(["abc", "def"]) is None
 
 
-# ---------------------------------------------------------------------------
-# normalize_optional_text  (2 cases)
-# ---------------------------------------------------------------------------
 def test_normalize_optional_text_returns_none_for_blank():
     assert normalize_optional_text("   ") is None
     assert normalize_optional_text(None) is None
@@ -397,9 +327,6 @@ def test_normalize_optional_text_keeps_content():
     assert normalize_optional_text("  hello  ") == "hello"
 
 
-# ---------------------------------------------------------------------------
-# parse_customized_list  (1 case)
-# ---------------------------------------------------------------------------
 def test_parse_customized_list_extracts_row():
     html = """
     <table>
@@ -423,9 +350,6 @@ def test_parse_customized_list_extracts_row():
     assert item["detail_url"].endswith("janghakSn=100")
 
 
-# ---------------------------------------------------------------------------
-# parse_notice_list  (1 case)
-# ---------------------------------------------------------------------------
 def test_parse_notice_list_extracts_row():
     html = """
     <table>

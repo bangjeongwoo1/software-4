@@ -2,7 +2,7 @@
 
 이 conftest는 두 가지 일을 한다.
 1. backend/ 디렉터리를 sys.path에 추가해서 scholarship.parser, contest.contest_parser 모듈을
-   바로 import 할 수 있게 한다.  이 tests/ 폴더를 backend/tests/ 안에 두고 실행하면 된다.
+   바로 import 할 수 있게 한다. 이 tests/ 폴더를 backend/tests/ 안에 두고 실행하면 된다.
 2. 오늘 날짜에 의존하는 함수 (build_status, calc_d_day 등) 테스트를 위해
    각 모듈의 ``date`` 심볼을 ``FakeDate`` 로 패치하는 ``frozen_today`` fixture 제공.
 """
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-# backend/ 를 sys.path에 추가  (tests/conftest.py 가 backend/tests/ 안에 있다고 가정)
+# backend/ 를 sys.path에 추가
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
