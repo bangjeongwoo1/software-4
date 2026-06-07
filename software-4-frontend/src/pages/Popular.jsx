@@ -35,7 +35,7 @@ export default function Popular() {
     return items
       .filter((it) => {
         if (type !== 'all' && it.type !== type) return false
-        if (department !== 'all' && it.department !== department && it.department !== '전체')
+        if (department !== 'all' && it.department !== department && it.department !== '전체 학과')
           return false
         if (grade !== 'all' && !it.targetGrade.includes(Number(grade))) return false
         return true
